@@ -17,12 +17,14 @@ package issues_test
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kr/pretty"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
+
+	"github.com/kr/pretty"
 
 	"github.com/google/go-github/github"
 	"github.com/stephen-soltesz/alertmanager-github-receiver/issues"
@@ -71,6 +73,11 @@ func TestCreateIssue(t *testing.T) {
 	testMux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
 		v := &github.IssueRequest{}
 		json.NewDecoder(r.Body).Decode(v)
+
+		authToken := r.Header.Get("Authorization")
+		if !strings.Contains(authToken, "FAKE-AUTH-TOKEN") {
+			t.Errorf("Request does not contain bearer token")
+		}
 
 		if *v.Title != title {
 			t.Errorf("Request title = %+v, want %+v", *v.Title, title)

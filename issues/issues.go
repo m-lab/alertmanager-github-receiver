@@ -13,8 +13,8 @@
 // limitations under the License.
 //////////////////////////////////////////////////////////////////////////////
 
-// A client interface around the Github API for creating, listing, and closing
-// issues.
+// A client interface wrapping the Github API for creating, listing, and closing
+// issues on a single repository.
 package issues
 
 import (
