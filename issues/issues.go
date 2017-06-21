@@ -13,7 +13,7 @@
 // limitations under the License.
 //////////////////////////////////////////////////////////////////////////////
 
-// A client interface around the GitHub API for creating, listing, and closing
+// A client interface around the Github API for creating, listing, and closing
 // issues.
 package issues
 
@@ -27,7 +27,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// A Client manages communication with the GitHub API.
+// A Client manages communication with the Github API.
 type Client struct {
 	// githubClient is an authenticated client for accessing the github API.
 	GithubClient *github.Client
@@ -37,7 +37,7 @@ type Client struct {
 	repo string
 }
 
-// NewClient creates an Client authenticated using the GitHub authToken.
+// NewClient creates an Client authenticated using the Github authToken.
 // Future operations are only performed on the given github "owner/repo".
 func NewClient(owner, repo, authToken string) (*Client, error) {
 	if authToken == "" {
@@ -55,7 +55,7 @@ func NewClient(owner, repo, authToken string) (*Client, error) {
 	return client, nil
 }
 
-// CreateIssue creates a new GitHub issue. New issues are unassigned.
+// CreateIssue creates a new Github issue. New issues are unassigned.
 func (c *Client) CreateIssue(title, body string) (*github.Issue, error) {
 	// Construct a minimal github issue request.
 	issueReq := github.IssueRequest{
