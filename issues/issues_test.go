@@ -1,8 +1,23 @@
+// Copyright 2017 alertmanager-github-receiver Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//////////////////////////////////////////////////////////////////////////////
 package issues_test
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/kr/pretty"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,53 +25,50 @@ import (
 	"testing"
 
 	"github.com/google/go-github/github"
-	"src/github.com/stephen-soltesz/alertmanager-github-receiver/issues"
+	"github.com/stephen-soltesz/alertmanager-github-receiver/issues"
 )
-
-// Adapted from https://github.com/google/go-github/blob/master/github/github_test.go#L39
 
 // Global vars for tests.
 //
-// Tests should register handlers on mux which provide mock responses for the
-// API method being tested.
+// Tests should register handlers on testMux which provide mock responses for
+// the Github API method used by the method under test.
 var (
-	// mux is the HTTP request multiplexer used with the test server.
-	mux *http.ServeMux
 
-	// server is a test HTTP server used to provide mock API responses.
-	server *httptest.Server
+	// testMux is the HTTP request multiplexer used with the test server.
+	testMux *http.ServeMux
+
+	// testServer is a test HTTP server used to provide mock API responses.
+	testServer *httptest.Server
 )
 
-func setup(client *issues.Client) {
-	// test server
-	mux = http.NewServeMux()
-	server = httptest.NewServer(mux)
+// setupServer starts a new http test server and returns the test server URL.
+func setupServer() *url.URL {
+	// test server.
+	testMux = http.NewServeMux()
+	testServer = httptest.NewServer(testMux)
 
-	url, _ := url.Parse(server.URL)
-	client.GithubClient.BaseURL = url
-
-	// github client configured to use test server
-	// client = NewClient(nil)
-	// client.BaseURL = url
-	// client.UploadURL = url
+	// test server URL is guaranteed to parse successfully.
+	url, _ := url.Parse(testServer.URL)
+	return url
 }
 
-func teardown() {
-	server.Close()
+// teardownServer stops the test server.
+func teardownServer() {
+	testServer.Close()
 }
 
 func TestCreateIssue(t *testing.T) {
-	client, err := issues.NewClient("owner", "repo", "fake-auth-token")
+	client, err := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
 	if err != nil {
 		t.Fatal("Failed to create new client.")
 	}
-	setup(client)
-	defer teardown()
+	client.GithubClient.BaseURL = setupServer()
+	defer teardownServer()
 
 	title := "my title"
 	body := "my issue body"
 
-	mux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
+	testMux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
 		v := &github.IssueRequest{}
 		json.NewDecoder(r.Body).Decode(v)
 
@@ -73,12 +85,70 @@ func TestCreateIssue(t *testing.T) {
 
 	issue, err := client.CreateIssue(title, body)
 	if err != nil {
-		t.Errorf("Issues.Create returned error: %v", err)
+		t.Errorf("CreateIssue returned error: %v", err)
 	}
 
 	want := &github.Issue{Number: github.Int(1)}
 	if !reflect.DeepEqual(issue, want) {
-		t.Errorf("Issues.Create returned %+v, want %+v", issue, want)
+		t.Errorf("CreateIssue returned %+v, want %+v", issue, want)
+	}
+}
+
+func TestListOpenIssues(t *testing.T) {
+	client, err := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
+	if err != nil {
+		t.Fatal("Failed to create new client.")
+	}
+	client.GithubClient.BaseURL = setupServer()
+	defer teardownServer()
+
+	testMux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
+		v := &github.IssueRequest{}
+		json.NewDecoder(r.Body).Decode(v)
+
+		t.Logf("Request: %s", pretty.Sprint(v))
+
+		// Fake result.
+		fmt.Fprint(w, `[{"number":1}, {"number": 2}]`)
+	})
+
+	issues, err := client.ListOpenIssues()
+	if err != nil {
+		t.Errorf("ListOpenIssues returned error: %v", err)
 	}
 
+	want := []*github.Issue{{Number: github.Int(1)}, {Number: github.Int(2)}}
+	if !reflect.DeepEqual(issues, want) {
+		t.Errorf("ListOpenIssues returned %+v, want %+v", issues, want)
+	}
+}
+
+func TestCloseIssue(t *testing.T) {
+	client, err := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
+	if err != nil {
+		t.Fatal("Failed to create new client.")
+	}
+	client.GithubClient.BaseURL = setupServer()
+	defer teardownServer()
+
+	testMux.HandleFunc("/repos/owner/repo/issues/1", func(w http.ResponseWriter, r *http.Request) {
+		v := &github.IssueRequest{}
+		json.NewDecoder(r.Body).Decode(v)
+
+		t.Logf("Request: %s", pretty.Sprint(v))
+
+		// Fake result.
+		fmt.Fprint(w, `{"number":1}`)
+	})
+
+	openIssue := &github.Issue{Number: github.Int(1)}
+
+	closedIssue, err := client.CloseIssue(openIssue)
+	if err != nil {
+		t.Errorf("CloseIssue returned error: %v", err)
+	}
+
+	if !reflect.DeepEqual(openIssue, closedIssue) {
+		t.Errorf("CloseIssue returned %+v, want %+v", closedIssue, openIssue)
+	}
 }
