@@ -18,7 +18,6 @@
 package issues
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/google/go-github/github"
@@ -39,10 +38,7 @@ type Client struct {
 
 // NewClient creates an Client authenticated using the Github authToken.
 // Future operations are only performed on the given github "owner/repo".
-func NewClient(owner, repo, authToken string) (*Client, error) {
-	if authToken == "" {
-		return nil, fmt.Errorf("Authentication Token must not be empty.")
-	}
+func NewClient(owner, repo, authToken string) *Client {
 	ctx := context.Background()
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
@@ -52,7 +48,7 @@ func NewClient(owner, repo, authToken string) (*Client, error) {
 		owner:        owner,
 		repo:         repo,
 	}
-	return client, nil
+	return client
 }
 
 // CreateIssue creates a new Github issue. New issues are unassigned.

@@ -60,10 +60,7 @@ func teardownServer() {
 }
 
 func TestCreateIssue(t *testing.T) {
-	client, err := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
-	if err != nil {
-		t.Fatal("Failed to create new client.")
-	}
+	client := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
@@ -102,10 +99,7 @@ func TestCreateIssue(t *testing.T) {
 }
 
 func TestListOpenIssues(t *testing.T) {
-	client, err := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
-	if err != nil {
-		t.Fatal("Failed to create new client.")
-	}
+	client := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
@@ -131,10 +125,7 @@ func TestListOpenIssues(t *testing.T) {
 }
 
 func TestCloseIssue(t *testing.T) {
-	client, err := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
-	if err != nil {
-		t.Fatal("Failed to create new client.")
-	}
+	client := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
