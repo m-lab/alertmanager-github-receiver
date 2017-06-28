@@ -16,12 +16,14 @@ package alerts
 
 import (
 	"encoding/json"
+
 	"github.com/google/go-github/github"
 	//"github.com/kr/pretty"
-	"github.com/prometheus/alertmanager/notify"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/prometheus/alertmanager/notify"
 )
 
 type ReceiverClient interface {
@@ -77,7 +79,8 @@ func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 
 // processAlert processes an alertmanager webhook message.
 func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
-	// TODO: replace list-and-search with search using labels.
+	// TODO(dev): replace list-and-search with search using labels.
+	// TODO(dev): Cache list results.
 	// List known issues from github.
 	issues, err := rh.Client.ListOpenIssues()
 	if err != nil {
@@ -102,6 +105,10 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 		_, err := rh.Client.CreateIssue(msgTitle, msgBody)
 		return err
 	}
+
+	// TODO(dev): every alert is an incident. So, open issues are a sign of
+	// either a real problem or a bad alert. Stop auto-closing issues once we
+	// are confident that the github receiver is well behaved.
 
 	// The message is resolved and we found a matching open issue from github,
 	// so close the issue.
