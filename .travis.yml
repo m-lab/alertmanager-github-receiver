@@ -1,0 +1,12 @@
+language: go
+
+go:
+ - 1.8.1
+
+# Unconditionally place the repo at GOPATH/src/${go_import_path} to support
+# forks.
+go_import_path: github.com/m-lab/alertmanager-github-receiver
+
+script:
+# Run query "unit tests".
+- go test -v github.com/m-lab/alertmanager-github-receiver/...
