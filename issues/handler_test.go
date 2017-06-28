@@ -21,7 +21,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stephen-soltesz/alertmanager-github-receiver/issues"
+	"github.com/m-lab/alertmanager-github-receiver/issues"
 )
 
 type fakeClient struct {

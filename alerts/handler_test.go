@@ -27,7 +27,7 @@ import (
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
-	"github.com/stephen-soltesz/alertmanager-github-receiver/alerts"
+	"github.com/m-lab/alertmanager-github-receiver/alerts"
 )
 
 type fakeClient struct {
