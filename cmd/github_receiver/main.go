@@ -20,10 +20,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/m-lab/alertmanager-github-receiver/alerts"
+	"github.com/m-lab/alertmanager-github-receiver/issues"
 	"net/http"
 	"os"
-
-	"github.com/stephen-soltesz/alertmanager-github-receiver/issues"
 )
 
 var (
@@ -51,8 +51,7 @@ func init() {
 
 func serveListener(client *issues.Client) {
 	http.Handle("/", &issues.ListHandler{client})
-	// TODO: enable alert receiver.
-	// http.Handle("/v1/receiver", &alerts.ReceiverHandler{client})
+	http.Handle("/v1/receiver", &alerts.ReceiverHandler{client})
 	http.ListenAndServe(":9393", nil)
 }
 

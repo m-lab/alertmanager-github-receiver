@@ -27,7 +27,7 @@ import (
 	"github.com/kr/pretty"
 
 	"github.com/google/go-github/github"
-	"github.com/stephen-soltesz/alertmanager-github-receiver/issues"
+	"github.com/m-lab/alertmanager-github-receiver/issues"
 )
 
 // Global vars for tests.
