@@ -49,8 +49,9 @@ func setupServer() *url.URL {
 	testMux = http.NewServeMux()
 	testServer = httptest.NewServer(testMux)
 
-	// test server URL is guaranteed to parse successfully.
-	url, _ := url.Parse(testServer.URL)
+	// Test server URL is guaranteed to parse successfully.
+	// The github client library requires that the URL end with a slash.
+	url, _ := url.Parse(testServer.URL + "/")
 	return url
 }
 

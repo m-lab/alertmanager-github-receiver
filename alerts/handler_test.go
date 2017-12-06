@@ -18,16 +18,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/google/go-github/github"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/google/go-github/github"
+
+	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
-	"github.com/m-lab/alertmanager-github-receiver/alerts"
 )
 
 type fakeClient struct {
@@ -109,7 +110,7 @@ func TestReceiverHandler(t *testing.T) {
 			createIssue("DiskRunningFull", "body1"),
 		},
 	}
-	handler := alerts.ReceiverHandler{f}
+	handler := alerts.ReceiverHandler{f, true}
 	handler.ServeHTTP(rw, req)
 	resp := rw.Result()
 
@@ -142,7 +143,7 @@ func TestReceiverHandler(t *testing.T) {
 
 	// No pre-existing issues to close.
 	f = &fakeClient{}
-	handler = alerts.ReceiverHandler{f}
+	handler = alerts.ReceiverHandler{f, true}
 	handler.ServeHTTP(rw, req)
 	resp = rw.Result()
 

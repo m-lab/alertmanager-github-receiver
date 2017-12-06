@@ -33,7 +33,11 @@ type ReceiverClient interface {
 }
 
 type ReceiverHandler struct {
+	// Client is an implementation of the ReceiverClient interface. Client is used to handle requests.
 	Client ReceiverClient
+
+	// AutoClose indicates whether resolved issues that are still open should be closed automatically.
+	AutoClose bool
 }
 
 // ServeHTTP receives and processes alertmanager notifications. If the alert
@@ -106,13 +110,9 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 		return err
 	}
 
-	// TODO(dev): every alert is an incident. So, open issues are a sign of
-	// either a real problem or a bad alert. Stop auto-closing issues once we
-	// are confident that the github receiver is well behaved.
-
-	// The message is resolved and we found a matching open issue from github,
-	// so close the issue.
-	if msg.Data.Status == "resolved" && foundIssue != nil {
+	// The message is resolved and we found a matching open issue from github.
+	// If AutoClose is true, then close the issue.
+	if msg.Data.Status == "resolved" && foundIssue != nil && rh.AutoClose {
 		// NOTE: there can be multiple "resolved" messages for the same
 		// alert. Prometheus evaluates rules every `evaluation_interval`.
 		// And, alertmanager preserves an alert until `resolve_timeout`. So
