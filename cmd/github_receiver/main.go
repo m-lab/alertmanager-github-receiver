@@ -20,16 +20,18 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/m-lab/alertmanager-github-receiver/alerts"
-	"github.com/m-lab/alertmanager-github-receiver/issues"
 	"net/http"
 	"os"
+
+	"github.com/m-lab/alertmanager-github-receiver/alerts"
+	"github.com/m-lab/alertmanager-github-receiver/issues"
 )
 
 var (
-	authtoken   = flag.String("authtoken", "", "Oauth2 token for access to github API.")
-	githubOwner = flag.String("owner", "", "The github user or organization name.")
-	githubRepo  = flag.String("repo", "", "The repository where issues are created.")
+	authtoken       = flag.String("authtoken", "", "Oauth2 token for access to github API.")
+	githubOwner     = flag.String("owner", "", "The github user or organization name.")
+	githubRepo      = flag.String("repo", "", "The repository where issues are created.")
+	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
 )
 
 const (
@@ -51,7 +53,7 @@ func init() {
 
 func serveListener(client *issues.Client) {
 	http.Handle("/", &issues.ListHandler{client})
-	http.Handle("/v1/receiver", &alerts.ReceiverHandler{client})
+	http.Handle("/v1/receiver", &alerts.ReceiverHandler{client, enableAutoClose})
 	http.ListenAndServe(":9393", nil)
 }
 
