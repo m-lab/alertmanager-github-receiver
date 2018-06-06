@@ -17,9 +17,10 @@ package issues
 
 import (
 	"fmt"
-	"github.com/google/go-github/github"
 	"html/template"
 	"net/http"
+
+	"github.com/google/go-github/github"
 )
 
 const (
@@ -38,10 +39,12 @@ var (
 	listTemplate = template.Must(template.New("list").Parse(listRawHTMLTemplate))
 )
 
+// ListClient defines an interface for listing issues.
 type ListClient interface {
 	ListOpenIssues() ([]*github.Issue, error)
 }
 
+// ListHandler contains data needed for HTTP handlers.
 type ListHandler struct {
 	Client ListClient
 }
