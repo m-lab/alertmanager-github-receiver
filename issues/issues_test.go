@@ -103,17 +103,7 @@ func TestListOpenIssues(t *testing.T) {
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
-	// testMux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
 	testMux.HandleFunc("/search/issues", func(w http.ResponseWriter, r *http.Request) {
-		//v := &github.IssueRequest{}
-		//err := json.NewDecoder(r.Body).Decode(v)
-		//if err != nil {
-		//t.Fatal(err)
-		//}
-
-		//t.Logf("Request: %s", pretty.Sprint(v))
-		// fmt.Fprint(w, `[{"number":1}, {"number": 2}]`)
-
 		// Fake result.
 		val := `{
 			"total_count":2,
@@ -146,8 +136,6 @@ func TestCloseIssue(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		// t.Logf("Request: %s", pretty.Sprint(v))
 
 		// Fake result.
 		fmt.Fprintf(w, `{"number":1, "repository_url":"%s"}`, u)
