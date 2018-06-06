@@ -42,7 +42,7 @@ func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
 	return f.listIssues, nil
 }
 
-func (f *fakeClient) CreateIssue(title, body string) (*github.Issue, error) {
+func (f *fakeClient) CreateIssue(repo, title, body string) (*github.Issue, error) {
 	fmt.Println("create issue")
 	f.createdIssue = createIssue(title, body)
 	return f.createdIssue, nil
@@ -110,7 +110,7 @@ func TestReceiverHandler(t *testing.T) {
 			createIssue("DiskRunningFull", "body1"),
 		},
 	}
-	handler := alerts.ReceiverHandler{f, true}
+	handler := alerts.ReceiverHandler{f, true, "default"}
 	handler.ServeHTTP(rw, req)
 	resp := rw.Result()
 
@@ -143,7 +143,7 @@ func TestReceiverHandler(t *testing.T) {
 
 	// No pre-existing issues to close.
 	f = &fakeClient{}
-	handler = alerts.ReceiverHandler{f, true}
+	handler = alerts.ReceiverHandler{f, true, "default"}
 	handler.ServeHTTP(rw, req)
 	resp = rw.Result()
 

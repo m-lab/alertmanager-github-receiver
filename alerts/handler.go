@@ -28,7 +28,7 @@ import (
 
 type ReceiverClient interface {
 	CloseIssue(issue *github.Issue) (*github.Issue, error)
-	CreateIssue(title, body string) (*github.Issue, error)
+	CreateIssue(repo, title, body string) (*github.Issue, error)
 	ListOpenIssues() ([]*github.Issue, error)
 }
 
@@ -38,6 +38,10 @@ type ReceiverHandler struct {
 
 	// AutoClose indicates whether resolved issues that are still open should be closed automatically.
 	AutoClose bool
+
+	// DefaultRepo all alerts without a "repo" label will be created in this repository.
+	// DefaultRepo must exist.
+	DefaultRepo string
 }
 
 // ServeHTTP receives and processes alertmanager notifications. If the alert
@@ -106,7 +110,7 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 	// issue from github, so create a new issue.
 	if msg.Data.Status == "firing" && foundIssue == nil {
 		msgBody := formatIssueBody(msg)
-		_, err := rh.Client.CreateIssue(msgTitle, msgBody)
+		_, err := rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody)
 		return err
 	}
 
@@ -123,4 +127,12 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 
 	// log.Printf("Unsupported WebhookMessage.Data.Status: %s", msg.Data.Status)
 	return nil
+}
+
+func (rh *ReceiverHandler) getTargetRepo(msg *notify.WebhookMessage) string {
+	repo := msg.CommonLabels["repo"]
+	if repo != "" {
+		return repo
+	}
+	return rh.DefaultRepo
 }
