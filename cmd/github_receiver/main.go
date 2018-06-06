@@ -30,8 +30,8 @@ import (
 
 var (
 	authtoken       = flag.String("authtoken", "", "Oauth2 token for access to github API.")
-	githubOwner     = flag.String("owner", "", "The github user or organization name where all repos are found.")
-	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not specify an alternate repo.")
+	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
+	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
 )
 
@@ -66,10 +66,10 @@ func serveListener(client *issues.Client) {
 
 func main() {
 	flag.Parse()
-	if *authtoken == "" || *githubOwner == "" || *githubRepo == "" {
+	if *authtoken == "" || *githubOrg == "" || *githubRepo == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
-	client := issues.NewClient(*githubOwner, *authtoken)
+	client := issues.NewClient(*githubOrg, *authtoken)
 	serveListener(client)
 }
