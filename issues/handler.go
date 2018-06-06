@@ -28,9 +28,9 @@ const (
 <html><body>
 <h1>Open Issues</h1>
 <table>
-  {{range .}}
-	<tr><td><a href={{.HTMLURL}}>{{.Title}}</a></td></tr>
-  {{end}}
+{{range .}}
+  <tr><td><a href={{.HTMLURL}}>{{.Title}}</a></td></tr>
+{{end}}
 </table>
 </body></html>`
 )

@@ -39,7 +39,7 @@ func TestListHandler(t *testing.T) {
 <h1>Open Issues</h1>
 <table>
 
-	<tr><td><a href=http://foo.bar>issue1 title</a></td></tr>
+  <tr><td><a href=http://foo.bar>issue1 title</a></td></tr>
 
 </table>
 </body></html>`
