@@ -15,11 +15,12 @@
 package issues_test
 
 import (
-	"github.com/google/go-github/github"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/google/go-github/github"
 
 	"github.com/m-lab/alertmanager-github-receiver/issues"
 )
@@ -37,9 +38,9 @@ func TestListHandler(t *testing.T) {
 <html><body>
 <h1>Open Issues</h1>
 <table>
-  
+
 	<tr><td><a href=http://foo.bar>issue1 title</a></td></tr>
-  
+
 </table>
 </body></html>`
 	f := &fakeClient{
@@ -59,7 +60,9 @@ func TestListHandler(t *testing.T) {
 	}
 
 	// Run the list handler.
-	handler := issues.ListHandler{f}
+	handler := issues.ListHandler{
+		Client: f,
+	}
 	handler.ServeHTTP(rw, req)
 	resp := rw.Result()
 
