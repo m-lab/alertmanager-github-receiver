@@ -110,7 +110,11 @@ func TestReceiverHandler(t *testing.T) {
 			createIssue("DiskRunningFull", "body1"),
 		},
 	}
-	handler := alerts.ReceiverHandler{f, true, "default"}
+	handler := alerts.ReceiverHandler{
+		Client:      f,
+		AutoClose:   true,
+		DefaultRepo: "default",
+	}
 	handler.ServeHTTP(rw, req)
 	resp := rw.Result()
 
@@ -143,7 +147,11 @@ func TestReceiverHandler(t *testing.T) {
 
 	// No pre-existing issues to close.
 	f = &fakeClient{}
-	handler = alerts.ReceiverHandler{f, true, "default"}
+	handler = alerts.ReceiverHandler{
+		Client:      f,
+		AutoClose:   true,
+		DefaultRepo: "default",
+	}
 	handler.ServeHTTP(rw, req)
 	resp = rw.Result()
 
