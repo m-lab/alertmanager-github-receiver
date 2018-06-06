@@ -24,8 +24,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kr/pretty"
-
 	"github.com/google/go-github/github"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
 )
@@ -61,14 +59,14 @@ func teardownServer() {
 }
 
 func TestCreateIssue(t *testing.T) {
-	client := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
+	client := issues.NewClient("fake-owner", "FAKE-AUTH-TOKEN")
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
 	title := "my title"
 	body := "my issue body"
 
-	testMux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
+	testMux.HandleFunc("/repos/fake-owner/fake-repo/issues", func(w http.ResponseWriter, r *http.Request) {
 		v := &github.IssueRequest{}
 		json.NewDecoder(r.Body).Decode(v)
 
@@ -88,7 +86,7 @@ func TestCreateIssue(t *testing.T) {
 		fmt.Fprint(w, `{"number":1}`)
 	})
 
-	issue, err := client.CreateIssue(title, body)
+	issue, err := client.CreateIssue("fake-repo", title, body)
 	if err != nil {
 		t.Errorf("CreateIssue returned error: %v", err)
 	}
@@ -100,18 +98,29 @@ func TestCreateIssue(t *testing.T) {
 }
 
 func TestListOpenIssues(t *testing.T) {
-	client := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
+	client := issues.NewClient("owner", "FAKE-AUTH-TOKEN")
+	// Override public github API with local server.
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
-	testMux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
-		v := &github.IssueRequest{}
-		json.NewDecoder(r.Body).Decode(v)
+	// testMux.HandleFunc("/repos/owner/repo/issues", func(w http.ResponseWriter, r *http.Request) {
+	testMux.HandleFunc("/search/issues", func(w http.ResponseWriter, r *http.Request) {
+		//v := &github.IssueRequest{}
+		//err := json.NewDecoder(r.Body).Decode(v)
+		//if err != nil {
+		//t.Fatal(err)
+		//}
 
-		t.Logf("Request: %s", pretty.Sprint(v))
+		//t.Logf("Request: %s", pretty.Sprint(v))
+		// fmt.Fprint(w, `[{"number":1}, {"number": 2}]`)
 
 		// Fake result.
-		fmt.Fprint(w, `[{"number":1}, {"number": 2}]`)
+		val := `{
+			"total_count":2,
+			"incomplete_results":true,
+			"items":[{"number":1}, {"number": 2}]
+		}`
+		fmt.Fprint(w, val)
 	})
 
 	issues, err := client.ListOpenIssues()
@@ -126,21 +135,25 @@ func TestListOpenIssues(t *testing.T) {
 }
 
 func TestCloseIssue(t *testing.T) {
-	client := issues.NewClient("owner", "repo", "FAKE-AUTH-TOKEN")
+	client := issues.NewClient("owner", "FAKE-AUTH-TOKEN")
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
-	testMux.HandleFunc("/repos/owner/repo/issues/1", func(w http.ResponseWriter, r *http.Request) {
+	u := "https://api.github.com/repos/fake-owner/fake-repo"
+	testMux.HandleFunc("/repos/fake-owner/fake-repo/issues/1", func(w http.ResponseWriter, r *http.Request) {
 		v := &github.IssueRequest{}
-		json.NewDecoder(r.Body).Decode(v)
+		err := json.NewDecoder(r.Body).Decode(v)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-		t.Logf("Request: %s", pretty.Sprint(v))
+		// t.Logf("Request: %s", pretty.Sprint(v))
 
 		// Fake result.
-		fmt.Fprint(w, `{"number":1}`)
+		fmt.Fprintf(w, `{"number":1, "repository_url":"%s"}`, u)
 	})
 
-	openIssue := &github.Issue{Number: github.Int(1)}
+	openIssue := &github.Issue{Number: github.Int(1), RepositoryURL: &u}
 
 	closedIssue, err := client.CloseIssue(openIssue)
 	if err != nil {

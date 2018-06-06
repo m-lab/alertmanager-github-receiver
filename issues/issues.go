@@ -18,7 +18,11 @@
 package issues
 
 import (
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net/url"
+	"strings"
 
 	"github.com/google/go-github/github"
 	"github.com/kr/pretty"
@@ -32,13 +36,11 @@ type Client struct {
 	GithubClient *github.Client
 	// owner is the github project (e.g. github.com/<owner>/<repo>).
 	owner string
-	// repo is the github repository under the above owner.
-	repo string
 }
 
 // NewClient creates an Client authenticated using the Github authToken.
 // Future operations are only performed on the given github "owner/repo".
-func NewClient(owner, repo, authToken string) *Client {
+func NewClient(owner, authToken string) *Client {
 	ctx := context.Background()
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
@@ -46,24 +48,28 @@ func NewClient(owner, repo, authToken string) *Client {
 	client := &Client{
 		GithubClient: github.NewClient(oauth2.NewClient(ctx, tokenSource)),
 		owner:        owner,
-		repo:         repo,
 	}
 	return client
 }
 
 // CreateIssue creates a new Github issue. New issues are unassigned.
-func (c *Client) CreateIssue(title, body string) (*github.Issue, error) {
+func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
+	// alert color: #e03010
+	//        name: alert:boom:
+	//      search: label:"alert:boom:"
+
 	// Construct a minimal github issue request.
 	issueReq := github.IssueRequest{
-		Title: &title,
-		Body:  &body,
+		Title:  &title,
+		Body:   &body,
+		Labels: &([]string{"alert:boom:"}),
 	}
 
 	// Create the issue.
 	// See also: https://developer.github.com/v3/issues/#create-an-issue
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Create
 	issue, resp, err := c.GithubClient.Issues.Create(
-		context.Background(), c.owner, c.repo, &issueReq)
+		context.Background(), c.owner, repo, &issueReq)
 	if err != nil {
 		log.Printf("Error in CreateIssue: response: %v\n%s",
 			err, pretty.Sprint(resp))
@@ -79,23 +85,28 @@ func (c *Client) CreateIssue(title, body string) (*github.Issue, error) {
 func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 	var allIssues []*github.Issue
 
-	opts := &github.IssueListByRepoOptions{State: "open"}
+	sopts := &github.SearchOptions{}
 	for {
-		issues, resp, err := c.GithubClient.Issues.ListByRepo(
-			context.Background(), c.owner, c.repo, opts)
+		issues, resp, err := c.GithubClient.Search.Issues(
+			context.Background(), `is:issue in:title is:open org:`+c.owner+` label:"alert:boom:"`, sopts)
 		if err != nil {
-			log.Printf("Failed to list open github issues: %v\n%s",
-				err, pretty.Sprint(resp))
+			log.Printf("Failed to list open github issues: %v\n", err)
 			return nil, err
 		}
+		b, _ := ioutil.ReadAll(resp.Body)
+		pretty.Print(string(b))
 		// Collect 'em all.
-		allIssues = append(allIssues, issues...)
+		for i := range issues.Issues {
+			log.Println("ListOpenIssues:", issues.Issues[i].GetTitle())
+			// pretty.Print(issues.Issues[i])
+			allIssues = append(allIssues, &issues.Issues[i])
+		}
 
 		// Continue loading the next page until all issues are received.
 		if resp.NextPage == 0 {
 			break
 		}
-		opts.ListOptions.Page = resp.NextPage
+		sopts.ListOptions.Page = resp.NextPage
 	}
 	return allIssues, nil
 }
@@ -107,14 +118,39 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 		State: github.String("closed"),
 	}
 
+	owner, repo, err := getOwnerAndRepoFromIssue(issue)
+	if err != nil {
+		return nil, err
+	}
+
 	// Edits the issue to have "closed" state.
 	// See also: https://developer.github.com/v3/issues/#edit-an-issue
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Edit
-	closedIssue, resp, err := c.GithubClient.Issues.Edit(
-		context.Background(), c.owner, c.repo, *issue.Number, &issueReq)
+	closedIssue, _, err := c.GithubClient.Issues.Edit(
+		context.Background(), owner, repo, *issue.Number, &issueReq)
 	if err != nil {
-		log.Printf("Failed to close issue: %v\n%s", err, pretty.Sprint(resp))
+		log.Printf("Failed to close issue: %v", err)
 		return nil, err
 	}
 	return closedIssue, nil
+}
+
+// getOwnerAndRepoFromIssue reads the issue RepositoryURL and extracts the
+// owner and repo names. Issues returned by the Search API contain partial
+// records.
+func getOwnerAndRepoFromIssue(issue *github.Issue) (string, string, error) {
+	repoURL := issue.GetRepositoryURL()
+	if repoURL == "" {
+		return "", "", fmt.Errorf("Issue has invalid RepositoryURL value")
+	}
+	u, err := url.Parse(repoURL)
+	if err != nil {
+		return "", "", err
+	}
+	fields := strings.Split(u.Path, "/")
+	if len(fields) != 4 {
+		return "", "", fmt.Errorf("Issue has invalid RepositoryURL value")
+	}
+	return fields[2], fields[3], nil
+
 }
