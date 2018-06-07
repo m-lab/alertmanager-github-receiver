@@ -80,9 +80,9 @@ func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
 	return issue, nil
 }
 
-// ListOpenIssues returns open issues created by past alerts from the configured
-// organization. Because ListOpenIssues uses the Github Search API, the
-// *github.Issue objects returned contain partial information.
+// ListOpenIssues returns open issues created by past alerts within the
+// client organization. Because ListOpenIssues uses the Github Search API,
+// the *github.Issue instances returned will contain partial information.
 // See also: https://developer.github.com/v3/search/#search-issues
 func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 	var allIssues []*github.Issue
