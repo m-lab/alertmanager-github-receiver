@@ -17,9 +17,10 @@ package issues
 
 import (
 	"fmt"
-	"github.com/google/go-github/github"
 	"html/template"
 	"net/http"
+
+	"github.com/google/go-github/github"
 )
 
 const (
@@ -27,9 +28,9 @@ const (
 <html><body>
 <h1>Open Issues</h1>
 <table>
-  {{range .}}
-	<tr><td><a href={{.HTMLURL}}>{{.Title}}</a></td></tr>
-  {{end}}
+{{range .}}
+  <tr><td><a href={{.HTMLURL}}>{{.Title}}</a></td></tr>
+{{end}}
 </table>
 </body></html>`
 )
@@ -38,17 +39,19 @@ var (
 	listTemplate = template.Must(template.New("list").Parse(listRawHTMLTemplate))
 )
 
+// ListClient defines an interface for listing issues.
 type ListClient interface {
 	ListOpenIssues() ([]*github.Issue, error)
 }
 
+// ListHandler contains data needed for HTTP handlers.
 type ListHandler struct {
-	Client ListClient
+	ListClient
 }
 
 // ServeHTTP lists open issues from github for view in a browser.
 func (lh *ListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	issues, err := lh.Client.ListOpenIssues()
+	issues, err := lh.ListOpenIssues()
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(rw, "%s\n", err)

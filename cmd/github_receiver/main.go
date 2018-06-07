@@ -25,12 +25,13 @@ import (
 
 	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
+	// TODO: add prometheus metrics for errors and github api access.
 )
 
 var (
 	authtoken       = flag.String("authtoken", "", "Oauth2 token for access to github API.")
-	githubOwner     = flag.String("owner", "", "The github user or organization name.")
-	githubRepo      = flag.String("repo", "", "The repository where issues are created.")
+	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
+	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
 )
 
@@ -52,17 +53,21 @@ func init() {
 }
 
 func serveListener(client *issues.Client) {
-	http.Handle("/", &issues.ListHandler{client})
-	http.Handle("/v1/receiver", &alerts.ReceiverHandler{client, *enableAutoClose})
+	http.Handle("/", &issues.ListHandler{ListClient: client})
+	http.Handle("/v1/receiver", &alerts.ReceiverHandler{
+		Client:      client,
+		DefaultRepo: *githubRepo,
+		AutoClose:   *enableAutoClose,
+	})
 	http.ListenAndServe(":9393", nil)
 }
 
 func main() {
 	flag.Parse()
-	if *authtoken == "" || *githubOwner == "" || *githubRepo == "" {
+	if *authtoken == "" || *githubOrg == "" || *githubRepo == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
-	client := issues.NewClient(*githubOwner, *githubRepo, *authtoken)
+	client := issues.NewClient(*githubOrg, *authtoken)
 	serveListener(client)
 }

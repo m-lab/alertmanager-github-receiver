@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //////////////////////////////////////////////////////////////////////////////
+
 package alerts
 
 import (
@@ -26,18 +27,26 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 )
 
+// ReceiverClient defines all issue operations needed by the ReceiverHandler.
 type ReceiverClient interface {
 	CloseIssue(issue *github.Issue) (*github.Issue, error)
-	CreateIssue(title, body string) (*github.Issue, error)
+	CreateIssue(repo, title, body string) (*github.Issue, error)
 	ListOpenIssues() ([]*github.Issue, error)
 }
 
+// ReceiverHandler contains data needed for HTTP handlers.
 type ReceiverHandler struct {
-	// Client is an implementation of the ReceiverClient interface. Client is used to handle requests.
+	// Client is an implementation of the ReceiverClient interface. Client is used
+	// to handle requests.
 	Client ReceiverClient
 
-	// AutoClose indicates whether resolved issues that are still open should be closed automatically.
+	// AutoClose indicates whether resolved issues that are still open should be
+	// closed automatically.
 	AutoClose bool
+
+	// DefaultRepo is the repository where all alerts without a "repo" label will
+	// be created. Repo must exist.
+	DefaultRepo string
 }
 
 // ServeHTTP receives and processes alertmanager notifications. If the alert
@@ -106,7 +115,7 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 	// issue from github, so create a new issue.
 	if msg.Data.Status == "firing" && foundIssue == nil {
 		msgBody := formatIssueBody(msg)
-		_, err := rh.Client.CreateIssue(msgTitle, msgBody)
+		_, err := rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody)
 		return err
 	}
 
@@ -123,4 +132,15 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 
 	// log.Printf("Unsupported WebhookMessage.Data.Status: %s", msg.Data.Status)
 	return nil
+}
+
+// getTargetRepo returns a suitable github repository for creating an issue for
+// the given alert message. If the alert includes a "repo" label, then getTargetRepo
+// uses that value. Otherwise, getTargetRepo uses the ReceiverHandler's default repo.
+func (rh *ReceiverHandler) getTargetRepo(msg *notify.WebhookMessage) string {
+	repo := msg.CommonLabels["repo"]
+	if repo != "" {
+		return repo
+	}
+	return rh.DefaultRepo
 }
