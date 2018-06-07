@@ -22,6 +22,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/kr/pretty"
@@ -62,11 +63,15 @@ func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
 		Labels: &([]string{"alert:boom:"}), // Search using: label:"alert:boom:"
 	}
 
+	// Enforce a timeout on the issue creation.
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
 	// Create the issue.
 	// See also: https://developer.github.com/v3/issues/#create-an-issue
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Create
 	issue, resp, err := c.GithubClient.Issues.Create(
-		context.Background(), c.org, repo, &issueReq)
+		ctx, c.org, repo, &issueReq)
 	if err != nil {
 		log.Printf("Error in CreateIssue: response: %v\n%s",
 			err, pretty.Sprint(resp))
@@ -75,15 +80,19 @@ func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
 	return issue, nil
 }
 
-// ListOpenIssues returns open alert issues in the configured organization.
-// Issues are collected using the Github Search API, so the github.Issues
-// objects return contain partial information.
+// ListOpenIssues returns open issues created by past alerts from the configured
+// organization. Because ListOpenIssues uses the Github Search API, the
+// *github.Issue objects returned contain partial information.
 // See also: https://developer.github.com/v3/search/#search-issues
 func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 	var allIssues []*github.Issue
 
 	sopts := &github.SearchOptions{}
 	for {
+		// Enforce a timeout on the issue listing.
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
 		// Github issues are either "open" or "closed". Closed issues have either been
 		// resolved automatically or by a person. So, there will be an ever increasing
 		// number of "closed" issues. By only listing "open" issues we limit the
@@ -91,7 +100,7 @@ func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 		//
 		// The search depends on all relevant issues including the "alert:boom:" label.
 		issues, resp, err := c.GithubClient.Search.Issues(
-			context.Background(), `is:issue in:title is:open org:`+c.org+` label:"alert:boom:"`, sopts)
+			ctx, `is:issue in:title is:open org:`+c.org+` label:"alert:boom:"`, sopts)
 		if err != nil {
 			log.Printf("Failed to list open github issues: %v\n", err)
 			return nil, err
@@ -122,12 +131,15 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Enforce a timeout on the issue edit.
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
 	// Edits the issue to have "closed" state.
 	// See also: https://developer.github.com/v3/issues/#edit-an-issue
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Edit
 	closedIssue, _, err := c.GithubClient.Issues.Edit(
-		context.Background(), org, repo, *issue.Number, &issueReq)
+		ctx, org, repo, *issue.Number, &issueReq)
 	if err != nil {
 		log.Printf("Failed to close issue: %v", err)
 		return nil, err
