@@ -60,9 +60,7 @@ func TestListHandler(t *testing.T) {
 	}
 
 	// Run the list handler.
-	handler := issues.ListHandler{
-		Client: f,
-	}
+	handler := issues.ListHandler{ListClient: f}
 	handler.ServeHTTP(rw, req)
 	resp := rw.Result()
 

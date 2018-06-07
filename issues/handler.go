@@ -46,12 +46,12 @@ type ListClient interface {
 
 // ListHandler contains data needed for HTTP handlers.
 type ListHandler struct {
-	Client ListClient
+	ListClient
 }
 
 // ServeHTTP lists open issues from github for view in a browser.
 func (lh *ListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	issues, err := lh.Client.ListOpenIssues()
+	issues, err := lh.ListOpenIssues()
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(rw, "%s\n", err)
