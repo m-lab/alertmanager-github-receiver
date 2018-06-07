@@ -53,9 +53,7 @@ func init() {
 }
 
 func serveListener(client *issues.Client) {
-	http.Handle("/", &issues.ListHandler{
-		Client: client,
-	})
+	http.Handle("/", &issues.ListHandler{ListClient: client})
 	http.Handle("/v1/receiver", &alerts.ReceiverHandler{
 		Client:      client,
 		DefaultRepo: *githubRepo,
