@@ -154,8 +154,6 @@ func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 			log.Printf("Failed to list open github issues: %v\n", err)
 			return nil, err
 		}
-		fmt.Println("LISTING OPTIONS")
-		log.Println(resp.Rate)
 		// Collect 'em all.
 		for i := range issues.Issues {
 			log.Println("ListOpenIssues:", issues.Issues[i].GetTitle())

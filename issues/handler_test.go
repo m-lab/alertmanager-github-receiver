@@ -36,12 +36,14 @@ func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
 func TestListHandler(t *testing.T) {
 	expected := `
 <html><body>
-<h1>Open Issues</h1>
+<h2>Open Issues</h2>
 <table>
 
   <tr><td><a href=http://foo.bar>issue1 title</a></td></tr>
 
 </table>
+<br/>
+Receiver metrics: <a href="/metrics">/metrics</a>
 </body></html>`
 	f := &fakeClient{
 		[]*github.Issue{
