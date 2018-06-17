@@ -51,6 +51,10 @@ type ListHandler struct {
 
 // ServeHTTP lists open issues from github for view in a browser.
 func (lh *ListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	if req.URL.Path != "/" && req.Method != http.MethodGet {
+		http.NotFound(rw, req)
+		return
+	}
 	issues, err := lh.ListOpenIssues()
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
