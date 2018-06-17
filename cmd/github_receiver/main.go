@@ -20,12 +20,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 
 	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
-	// TODO: add prometheus metrics for errors and github api access.
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -33,6 +35,18 @@ var (
 	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
 	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
+	receiverPort    = flag.String("port", "9393", "The port for accepting alertmanager webhook messages.")
+)
+
+// Metrics.
+var (
+	receiverDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "github_receiver_duration_seconds",
+			Help: "A histogram of request latencies to the receiver handler.",
+		},
+		[]string{"code"},
+	)
 )
 
 const (
@@ -52,14 +66,16 @@ func init() {
 	}
 }
 
-func serveListener(client *issues.Client) {
-	http.Handle("/", &issues.ListHandler{ListClient: client})
-	http.Handle("/v1/receiver", &alerts.ReceiverHandler{
+func serveReceiverHandler(client *issues.Client) {
+	receiverHandler := &alerts.ReceiverHandler{
 		Client:      client,
 		DefaultRepo: *githubRepo,
 		AutoClose:   *enableAutoClose,
-	})
-	http.ListenAndServe(":9393", nil)
+	}
+	http.Handle("/", &issues.ListHandler{ListClient: client})
+	http.Handle("/v1/receiver", promhttp.InstrumentHandlerDuration(receiverDuration, receiverHandler))
+	http.Handle("/metrics", promhttp.Handler())
+	log.Fatal(http.ListenAndServe(":"+*receiverPort, nil))
 }
 
 func main() {
@@ -69,5 +85,5 @@ func main() {
 		os.Exit(1)
 	}
 	client := issues.NewClient(*githubOrg, *authtoken)
-	serveListener(client)
+	serveReceiverHandler(client)
 }
