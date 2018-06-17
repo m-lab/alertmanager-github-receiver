@@ -25,10 +25,58 @@ import (
 	"time"
 
 	"github.com/google/go-github/github"
-	"github.com/kr/pretty"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
+
+var (
+	rateLimit = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "issues_api_rate_limit",
+			Help: "The limit of API requests the client can make.",
+		},
+		// The GitHub API this rate limit applies to. e.g. "search" or "issues"
+		[]string{"api"},
+	)
+	rateRemaining = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "issues_api_rate_remaining",
+			Help: "The remaining API requests the client can make until reset time.",
+		},
+		// The GitHub API this rate limit applies to. e.g. "search" or "issues"
+		[]string{"api"},
+	)
+	rateResetTime = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "issues_api_rate_reset",
+			Help: "The time when the current rate limit will reset.",
+		},
+		// The GitHub API this rate limit applies to. e.g. "search" or "issues"
+		[]string{"api"},
+	)
+	rateErrorCount = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "issues_api_rate_error_total",
+			Help: "Number of API operations that encountered an API rate limit error.",
+		},
+	)
+	operationCount = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "issues_api_total",
+			Help: "Number of API operations performed.",
+		},
+		[]string{"status"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(rateLimit)
+	prometheus.MustRegister(rateRemaining)
+	prometheus.MustRegister(rateResetTime)
+	prometheus.MustRegister(rateErrorCount)
+	prometheus.MustRegister(operationCount)
+}
 
 // A Client manages communication with the Github API.
 type Client struct {
@@ -72,9 +120,9 @@ func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Create
 	issue, resp, err := c.GithubClient.Issues.Create(
 		ctx, c.org, repo, &issueReq)
+	updateRateMetrics("issues", resp, err)
 	if err != nil {
-		log.Printf("Error in CreateIssue: response: %v\n%s",
-			err, pretty.Sprint(resp))
+		log.Printf("Error in CreateIssue: response: %v", err)
 		return nil, err
 	}
 	return issue, nil
@@ -101,10 +149,13 @@ func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 		// The search depends on all relevant issues including the "alert:boom:" label.
 		issues, resp, err := c.GithubClient.Search.Issues(
 			ctx, `is:issue in:title is:open org:`+c.org+` label:"alert:boom:"`, sopts)
+		updateRateMetrics("search", resp, err)
 		if err != nil {
 			log.Printf("Failed to list open github issues: %v\n", err)
 			return nil, err
 		}
+		fmt.Println("LISTING OPTIONS")
+		log.Println(resp.Rate)
 		// Collect 'em all.
 		for i := range issues.Issues {
 			log.Println("ListOpenIssues:", issues.Issues[i].GetTitle())
@@ -126,7 +177,6 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	issueReq := github.IssueRequest{
 		State: github.String("closed"),
 	}
-
 	org, repo, err := getOrgAndRepoFromIssue(issue)
 	if err != nil {
 		return nil, err
@@ -138,8 +188,9 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	// Edits the issue to have "closed" state.
 	// See also: https://developer.github.com/v3/issues/#edit-an-issue
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Edit
-	closedIssue, _, err := c.GithubClient.Issues.Edit(
+	closedIssue, resp, err := c.GithubClient.Issues.Edit(
 		ctx, org, repo, *issue.Number, &issueReq)
+	updateRateMetrics("issues", resp, err)
 	if err != nil {
 		log.Printf("Failed to close issue: %v", err)
 		return nil, err
@@ -165,4 +216,18 @@ func getOrgAndRepoFromIssue(issue *github.Issue) (string, string, error) {
 	}
 	return fields[2], fields[3], nil
 
+}
+
+func updateRateMetrics(api string, resp *github.Response, err error) {
+	// Update rate limit metrics.
+	rateLimit.WithLabelValues(api).Set(float64(resp.Rate.Limit))
+	rateRemaining.WithLabelValues(api).Set(float64(resp.Rate.Remaining))
+	rateResetTime.WithLabelValues(api).Set(float64(resp.Rate.Reset.UTC().Unix()))
+	// Count the number of API operations per HTTP Status.
+	operationCount.WithLabelValues(resp.Status).Inc()
+	// If the err is a RateLimitError, then increment the rateError counter.
+	if _, ok := err.(*github.RateLimitError); ok {
+		log.Println("Hit rate limit!")
+		rateErrorCount.Inc()
+	}
 }
