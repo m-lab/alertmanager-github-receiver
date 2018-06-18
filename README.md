@@ -28,9 +28,9 @@ Because this access token has permission to create issues and operate on
 repositories the access token user can access, protect the access token as
 you would a password.
 
-## Start GitHub Reciever
+## Start GitHub Receiver
 
-To start the github reciever locally:
+To start the github receiver locally:
 ```
 docker run -it measurementlab/alertmanager-github-receiver:latest
         -authtoken=$(GITHUB_AUTH_TOKEN) -org=<org> -repo=<repo>
@@ -73,3 +73,4 @@ msg='{
 }'
 curl -XPOST --data-binary "${msg}" http://localhost:9393/v1/receiver
 ```
+
