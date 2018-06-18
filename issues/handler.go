@@ -26,12 +26,14 @@ import (
 const (
 	listRawHTMLTemplate = `
 <html><body>
-<h1>Open Issues</h1>
+<h2>Open Issues</h2>
 <table>
 {{range .}}
   <tr><td><a href={{.HTMLURL}}>{{.Title}}</a></td></tr>
 {{end}}
 </table>
+<br/>
+Receiver metrics: <a href="/metrics">/metrics</a>
 </body></html>`
 )
 
@@ -51,6 +53,10 @@ type ListHandler struct {
 
 // ServeHTTP lists open issues from github for view in a browser.
 func (lh *ListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	if req.URL.Path != "/" || req.Method != http.MethodGet {
+		http.NotFound(rw, req)
+		return
+	}
 	issues, err := lh.ListOpenIssues()
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
