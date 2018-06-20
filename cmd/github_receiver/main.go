@@ -26,6 +26,7 @@ import (
 
 	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
+	"github.com/m-lab/alertmanager-github-receiver/memory"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -35,6 +36,7 @@ var (
 	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
 	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
+	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
 	receiverPort    = flag.String("port", "9393", "The port for accepting alertmanager webhook messages.")
 )
 
@@ -66,7 +68,7 @@ func init() {
 	}
 }
 
-func serveReceiverHandler(client *issues.Client) {
+func serveReceiverHandler(client alerts.ReceiverClient) {
 	receiverHandler := &alerts.ReceiverHandler{
 		Client:      client,
 		DefaultRepo: *githubRepo,
@@ -84,6 +86,11 @@ func main() {
 		flag.Usage()
 		os.Exit(1)
 	}
-	client := issues.NewClient(*githubOrg, *authtoken)
+	var client alerts.ReceiverClient
+	if *enableInMemory {
+		client = memory.NewClient()
+	} else {
+		client = issues.NewClient(*githubOrg, *authtoken)
+	}
 	serveReceiverHandler(client)
 }
