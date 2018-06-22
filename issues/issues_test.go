@@ -86,7 +86,7 @@ func TestCreateIssue(t *testing.T) {
 		fmt.Fprint(w, `{"number":1}`)
 	})
 
-	issue, err := client.CreateIssue("fake-repo", title, body)
+	issue, err := client.CreateIssue("fake-repo", title, body, nil)
 	if err != nil {
 		t.Errorf("CreateIssue returned error: %v", err)
 	}

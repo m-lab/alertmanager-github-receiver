@@ -36,7 +36,7 @@ func NewClient() *Client {
 }
 
 // CreateIssue adds a new issue to the in memory store.
-func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
+func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
 	c.issues[title] = &github.Issue{
 		Title: &title,
 		Body:  &body,

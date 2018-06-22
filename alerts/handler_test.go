@@ -42,7 +42,7 @@ func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
 	return f.listIssues, nil
 }
 
-func (f *fakeClient) CreateIssue(repo, title, body string) (*github.Issue, error) {
+func (f *fakeClient) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
 	fmt.Println("create issue")
 	f.createdIssue = createIssue(title, body)
 	return f.createdIssue, nil
