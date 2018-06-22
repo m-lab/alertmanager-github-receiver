@@ -103,12 +103,17 @@ func NewClient(org, authToken string) *Client {
 // CreateIssue creates a new Github issue. New issues are unassigned. Issues are
 // labeled with with an alert named "alert:boom:". Labels are created automatically
 // if they do not already exist in a repo.
-func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
+func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
+	labels := make([]string, len(extra)+1)
+	labels[0] = "alert:boom:"
+	for i := range extra {
+		labels[i+1] = extra[i]
+	}
 	// Construct a minimal github issue request.
 	issueReq := github.IssueRequest{
 		Title:  &title,
 		Body:   &body,
-		Labels: &([]string{"alert:boom:"}), // Search using: label:"alert:boom:"
+		Labels: &labels, // Search using: label:"alert:boom:"
 	}
 
 	// Enforce a timeout on the issue creation.

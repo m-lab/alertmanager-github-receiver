@@ -30,7 +30,7 @@ import (
 // ReceiverClient defines all issue operations needed by the ReceiverHandler.
 type ReceiverClient interface {
 	CloseIssue(issue *github.Issue) (*github.Issue, error)
-	CreateIssue(repo, title, body string) (*github.Issue, error)
+	CreateIssue(repo, title, body string, extra []string) (*github.Issue, error)
 	ListOpenIssues() ([]*github.Issue, error)
 }
 
@@ -47,6 +47,9 @@ type ReceiverHandler struct {
 	// DefaultRepo is the repository where all alerts without a "repo" label will
 	// be created. Repo must exist.
 	DefaultRepo string
+
+	// ExtraLabels values will be added to new issues as additional labels.
+	ExtraLabels []string
 }
 
 // ServeHTTP receives and processes alertmanager notifications. If the alert
@@ -115,7 +118,7 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 	// issue from github, so create a new issue.
 	if msg.Data.Status == "firing" && foundIssue == nil {
 		msgBody := formatIssueBody(msg)
-		_, err := rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody)
+		_, err := rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, rh.ExtraLabels)
 		return err
 	}
 

@@ -38,7 +38,7 @@ func TestMemoryClient(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewClient()
-			got, err := c.CreateIssue("fake-repo", tt.title, tt.body)
+			got, err := c.CreateIssue("fake-repo", tt.title, tt.body, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.CreateIssue() error = %v, wantErr %v", err, tt.wantErr)
 				return

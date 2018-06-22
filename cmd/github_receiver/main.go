@@ -18,7 +18,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,6 +28,7 @@ import (
 	"github.com/m-lab/alertmanager-github-receiver/issues/local"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	flag "github.com/spf13/pflag"
 )
 
 var (
@@ -38,6 +38,7 @@ var (
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
 	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
 	receiverPort    = flag.String("port", "9393", "The port for accepting alertmanager webhook messages.")
+	extraLabels     = flag.StringArray("label", nil, "Extra labels to add to issues at creation time.")
 )
 
 // Metrics.
@@ -73,6 +74,7 @@ func serveReceiverHandler(client alerts.ReceiverClient) {
 		Client:      client,
 		DefaultRepo: *githubRepo,
 		AutoClose:   *enableAutoClose,
+		ExtraLabels: *extraLabels,
 	}
 	http.Handle("/", &issues.ListHandler{ListClient: client})
 	http.Handle("/v1/receiver", promhttp.InstrumentHandlerDuration(receiverDuration, receiverHandler))
