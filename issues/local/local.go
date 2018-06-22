@@ -14,7 +14,7 @@
 //////////////////////////////////////////////////////////////////////////////
 
 // Package memory provides in memory operations on GitHub issues.
-package memory
+package local
 
 import (
 	"fmt"

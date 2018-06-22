@@ -26,7 +26,7 @@ import (
 
 	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
-	"github.com/m-lab/alertmanager-github-receiver/memory"
+	"github.com/m-lab/alertmanager-github-receiver/issues/local"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -88,7 +88,7 @@ func main() {
 	}
 	var client alerts.ReceiverClient
 	if *enableInMemory {
-		client = memory.NewClient()
+		client = local.NewClient()
 	} else {
 		client = issues.NewClient(*githubOrg, *authtoken)
 	}
