@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -97,6 +98,47 @@ func TestCreateIssue(t *testing.T) {
 	}
 }
 
+func TestCreateComment(t *testing.T) {
+	client := issues.NewClient("fake-owner", "FAKE-AUTH-TOKEN")
+	client.GithubClient.BaseURL = setupServer()
+	defer teardownServer()
+
+	issueID := int64(1)
+	body := "my comment body"
+
+	testMux.HandleFunc("/repos/fake-owner/fake-repo/issues/"+strconv.Itoa(int(issueID))+"/comments", func(w http.ResponseWriter, r *http.Request) {
+		v := &github.IssueComment{}
+
+		json.NewDecoder(r.Body).Decode(v)
+
+		fmt.Println(v)
+
+		authToken := r.Header.Get("Authorization")
+		if !strings.Contains(authToken, "FAKE-AUTH-TOKEN") {
+			t.Errorf("Request does not contain bearer token")
+		}
+
+		if *v.Body != body {
+			t.Errorf("Request body = %+v, want %+v", *v.Body, body)
+		}
+
+		// Fake result.
+		fmt.Fprint(w, `{
+			"id": `+strconv.Itoa(int(issueID))+`,
+			"body": "`+body+`"
+		}`)
+	})
+
+	comment, err := client.CreateComment("fake-repo", body, int(issueID))
+	if err != nil {
+		t.Errorf("CreateComment returned error: %v", err)
+	}
+
+	want := &github.IssueComment{Body: &body, ID: &issueID}
+	if !reflect.DeepEqual(comment, want) {
+		t.Errorf("CreateIssue returned %+v, want %+v", comment, want)
+	}
+}
 func TestListOpenIssues(t *testing.T) {
 	client := issues.NewClient("owner", "FAKE-AUTH-TOKEN")
 	// Override public github API with local server.

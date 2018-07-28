@@ -17,6 +17,7 @@ package alerts
 
 import (
 	"encoding/json"
+	"strconv"
 
 	"github.com/google/go-github/github"
 	//"github.com/kr/pretty"
@@ -31,7 +32,9 @@ import (
 type ReceiverClient interface {
 	CloseIssue(issue *github.Issue) (*github.Issue, error)
 	CreateIssue(repo, title, body string, extra []string) (*github.Issue, error)
+	CreateComment(repo, body string, issueNum int) (*github.IssueComment, error)
 	ListOpenIssues() ([]*github.Issue, error)
+	GetIssue(repo string, issueID int) (*github.Issue, *github.Response, error)
 }
 
 // ReceiverHandler contains data needed for HTTP handlers.
@@ -95,29 +98,60 @@ func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 
 // processAlert processes an alertmanager webhook message.
 func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
-	// TODO(dev): replace list-and-search with search using labels.
-	// TODO(dev): Cache list results.
-	// List known issues from github.
-	issues, err := rh.Client.ListOpenIssues()
-	if err != nil {
-		return err
-	}
-
-	// Search for an issue that matches the notification message from AM.
-	msgTitle := formatTitle(msg)
 	var foundIssue *github.Issue
-	for _, issue := range issues {
-		if msgTitle == *issue.Title {
-			log.Printf("Found matching issue: %s\n", msgTitle)
-			foundIssue = issue
+	msgTitle := formatTitle(msg)
+	msgBody := formatIssueBody(msg)
+	var resp *github.Response
+	var issueID int
+	var err error
+
+	// When the annotation includes an issue id. Than no need to search by the title.
+	for k, v := range msg.CommonAnnotations {
+		if k == "issue" {
+			if issueID, err = strconv.Atoi(v); err == nil {
+				if foundIssue, resp, err = rh.Client.GetIssue(rh.getTargetRepo(msg), issueID); err != nil {
+					// We will ignore not found errors.
+					if resp != nil && resp.StatusCode == http.StatusNotFound {
+						break
+					}
+					return err
+				}
+			} else {
+				return err
+			}
 			break
 		}
+	}
+
+	// Didn't find the issue by the issue ID so now try by it's title.
+	if foundIssue == nil {
+		// TODO(dev): replace list-and-search with search using labels.
+		// TODO(dev): Cache list results.
+		// List known issues from github.
+		issues, err := rh.Client.ListOpenIssues()
+		if err != nil {
+			return err
+		}
+
+		// Search for an issue that matches the notification message from AM.
+		for _, issue := range issues {
+			if msgTitle == *issue.Title {
+				log.Printf("Found matching issue: %s\n", msgTitle)
+				foundIssue = issue
+				break
+			}
+		}
+	}
+
+	// The message is currently firing and we found  a matching issue so post a comment update.
+	if msg.Data.Status == "firing" && foundIssue != nil {
+		_, err := rh.Client.CreateComment(rh.getTargetRepo(msg), msgBody, int(issueID))
+		return err
 	}
 
 	// The message is currently firing and we did not find a matching
 	// issue from github, so create a new issue.
 	if msg.Data.Status == "firing" && foundIssue == nil {
-		msgBody := formatIssueBody(msg)
 		_, err := rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, rh.ExtraLabels)
 		return err
 	}

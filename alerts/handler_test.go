@@ -32,9 +32,11 @@ import (
 )
 
 type fakeClient struct {
-	listIssues   []*github.Issue
-	createdIssue *github.Issue
-	closedIssue  *github.Issue
+	listIssues     []*github.Issue
+	issues         map[int]*github.Issue
+	createdIssue   *github.Issue
+	createdComment *github.IssueComment
+	closedIssue    *github.Issue
 }
 
 func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
@@ -42,10 +44,21 @@ func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
 	return f.listIssues, nil
 }
 
+func (f *fakeClient) GetIssue(repo string, issueID int) (*github.Issue, *github.Response, error) {
+	return f.issues[issueID], nil, nil
+}
+
 func (f *fakeClient) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
 	fmt.Println("create issue")
 	f.createdIssue = createIssue(title, body)
 	return f.createdIssue, nil
+}
+
+func (f *fakeClient) CreateComment(repo, body string, issueNum int) (*github.IssueComment, error) {
+	fmt.Println("create comment")
+	id := int64(issueNum)
+	f.createdComment = createComment(body, &id)
+	return f.createdComment, nil
 }
 
 func (f *fakeClient) CloseIssue(issue *github.Issue) (*github.Issue, error) {
@@ -87,6 +100,13 @@ func createIssue(title, body string) *github.Issue {
 	return &github.Issue{
 		Title: github.String(title),
 		Body:  github.String(body),
+	}
+}
+
+func createComment(body string, issueID *int64) *github.IssueComment {
+	return &github.IssueComment{
+		ID:   issueID,
+		Body: github.String(body),
 	}
 }
 

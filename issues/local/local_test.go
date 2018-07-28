@@ -46,6 +46,7 @@ func TestMemoryClient(t *testing.T) {
 			wantIssue := &github.Issue{
 				Title: &tt.title,
 				Body:  &tt.body,
+				ID:    got.ID,
 			}
 			if !reflect.DeepEqual(got, wantIssue) {
 				t.Errorf("Client.CreateIssue() = %v, want %v", got, wantIssue)
@@ -59,6 +60,7 @@ func TestMemoryClient(t *testing.T) {
 				&github.Issue{
 					Title: &tt.title,
 					Body:  &tt.body,
+					ID:    wantIssue.ID,
 				},
 			}
 			if !reflect.DeepEqual(list, wantList) {

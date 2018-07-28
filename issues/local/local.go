@@ -18,30 +18,47 @@ package local
 
 import (
 	"fmt"
+	"hash/fnv"
 	"log"
+	"net/http"
 
 	"github.com/google/go-github/github"
 )
 
 // Client manages operations on the in memory store.
 type Client struct {
-	issues map[string]*github.Issue
+	issues   map[string]*github.Issue
+	comments map[int]map[int64]*github.IssueComment
 }
 
 // NewClient creates a Client.
 func NewClient() *Client {
 	return &Client{
-		issues: make(map[string]*github.Issue),
+		issues:   make(map[string]*github.Issue),
+		comments: make(map[int]map[int64]*github.IssueComment),
 	}
 }
 
 // CreateIssue adds a new issue to the in memory store.
 func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
+	id := generateID(title)
 	c.issues[title] = &github.Issue{
 		Title: &title,
 		Body:  &body,
+		ID:    &id,
 	}
 	return c.issues[title], nil
+}
+
+// CreateComment adds a new comment to the in memory store.
+func (c *Client) CreateComment(repo, body string, issueNum int) (*github.IssueComment, error) {
+	id := generateID(body)
+	comment := &github.IssueComment{
+		Body: &body,
+		ID:   &id,
+	}
+	c.comments[issueNum][id] = comment
+	return comment, nil
 }
 
 // ListOpenIssues returns all issues in the memory store.
@@ -61,4 +78,25 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	}
 	delete(c.issues, issue.GetTitle())
 	return issue, nil
+}
+
+// GetIssue by its ID.
+func (c *Client) GetIssue(repo string, issueID int) (*github.Issue, *github.Response, error) {
+	for _, i := range c.issues {
+		if *i.ID == int64(issueID) {
+			return i, nil, nil
+		}
+	}
+	return nil, &github.Response{
+		Response: &http.Response{
+			StatusCode: http.StatusNotFound,
+		},
+	}, nil
+}
+
+// Generate an ID form the title's hash.
+func generateID(s string) int64 {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return int64(h.Sum32())
 }

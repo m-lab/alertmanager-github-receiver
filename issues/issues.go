@@ -133,6 +133,44 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 	return issue, nil
 }
 
+// GetIssue by its ID.
+func (c *Client) GetIssue(repo string, issueID int) (*github.Issue, *github.Response, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	issueRes, resp, err := c.GithubClient.Issues.Get(ctx, c.org, repo, issueID)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	updateRateMetrics("issues", resp, err)
+	return issueRes, resp, nil
+}
+
+// CreateComment creates a new Github comment to an existing issue,
+func (c *Client) CreateComment(repo, body string, issueNum int) (*github.IssueComment, error) {
+
+	commentReq := &github.IssueComment{
+		Body: &body,
+	}
+
+	// Enforce a timeout on the issue creation.
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	// Create the issue.
+	// See also: https://developer.github.com/v3/issues/comments/#create-a-comment
+	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.CreateComment
+	commentRep, resp, err := c.GithubClient.Issues.CreateComment(ctx, c.org, repo, issueNum, commentReq)
+
+	updateRateMetrics("comments", resp, err)
+	if err != nil {
+		log.Printf("Error in CreateComment: response: %v", err)
+		return nil, err
+	}
+	return commentRep, nil
+}
+
 // ListOpenIssues returns open issues created by past alerts within the
 // client organization. Because ListOpenIssues uses the Github Search API,
 // the *github.Issue instances returned will contain partial information.

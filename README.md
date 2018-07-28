@@ -7,7 +7,7 @@ because alerts are always an actual problem. Either:
  * an actual problem in processes around the monitored system
  * an actual problem with the alert itself
 
-The alertmanager github receiver creates GitHub issues using
+The alertmanager github receiver creates GitHub issues or posts new comments to existing issues.
 [Alertmanager](https://github.com/prometheus/alertmanager) webhook
 notifications.
 
@@ -61,6 +61,7 @@ msg='{
   "receiver": "http://localhost:9393/v1/receiver",
   "groupLabels": {"alertname": "FoobarIsBroken"},
   "externalURL": "http://localhost:9093",
+   "commonAnnotations": {"issue": "53"}, // When this is present it will post a new comment to issue 53 if it exists.
   "alerts": [
     {
       "labels": {"thing": "value"},
