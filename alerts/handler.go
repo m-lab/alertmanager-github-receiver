@@ -34,7 +34,7 @@ type ReceiverClient interface {
 	CreateIssue(repo, title, body string, extra []string) (*github.Issue, error)
 	CreateComment(repo, body string, issueNum int) (*github.IssueComment, error)
 	ListOpenIssues() ([]*github.Issue, error)
-	GetIssue(repo string, issueID int) (*github.Issue, *github.Response, error)
+	GetIssue(repo string, issueID int) (*github.Issue, error)
 }
 
 // ReceiverHandler contains data needed for HTTP handlers.
@@ -101,7 +101,6 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 	var foundIssue *github.Issue
 	msgTitle := formatTitle(msg)
 	msgBody := formatIssueBody(msg)
-	var resp *github.Response
 	var issueID int
 	var err error
 
@@ -109,11 +108,7 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 	for k, v := range msg.CommonAnnotations {
 		if k == "issue" {
 			if issueID, err = strconv.Atoi(v); err == nil {
-				if foundIssue, resp, err = rh.Client.GetIssue(rh.getTargetRepo(msg), issueID); err != nil {
-					// We will ignore not found errors.
-					if resp != nil && resp.StatusCode == http.StatusNotFound {
-						break
-					}
+				if foundIssue, err = rh.Client.GetIssue(rh.getTargetRepo(msg), issueID); err != nil {
 					return err
 				}
 			} else {

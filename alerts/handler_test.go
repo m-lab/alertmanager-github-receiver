@@ -44,8 +44,8 @@ func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
 	return f.listIssues, nil
 }
 
-func (f *fakeClient) GetIssue(repo string, issueID int) (*github.Issue, *github.Response, error) {
-	return f.issues[issueID], nil, nil
+func (f *fakeClient) GetIssue(repo string, issueID int) (*github.Issue, error) {
+	return f.issues[issueID], nil
 }
 
 func (f *fakeClient) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {

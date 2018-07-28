@@ -134,17 +134,17 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 }
 
 // GetIssue by its ID.
-func (c *Client) GetIssue(repo string, issueID int) (*github.Issue, *github.Response, error) {
+func (c *Client) GetIssue(repo string, issueID int) (*github.Issue, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	issueRes, resp, err := c.GithubClient.Issues.Get(ctx, c.org, repo, issueID)
 	if err != nil {
-		return nil, resp, err
+		return nil, err
 	}
 
 	updateRateMetrics("issues", resp, err)
-	return issueRes, resp, nil
+	return issueRes, nil
 }
 
 // CreateComment creates a new Github comment to an existing issue,

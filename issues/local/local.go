@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"log"
-	"net/http"
 
 	"github.com/google/go-github/github"
 )
@@ -81,17 +80,13 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 }
 
 // GetIssue by its ID.
-func (c *Client) GetIssue(repo string, issueID int) (*github.Issue, *github.Response, error) {
+func (c *Client) GetIssue(repo string, issueID int) (*github.Issue, error) {
 	for _, i := range c.issues {
 		if *i.ID == int64(issueID) {
-			return i, nil, nil
+			return i, nil
 		}
 	}
-	return nil, &github.Response{
-		Response: &http.Response{
-			StatusCode: http.StatusNotFound,
-		},
-	}, nil
+	return nil, fmt.Errorf("issue not found")
 }
 
 // Generate an ID form the title's hash.
