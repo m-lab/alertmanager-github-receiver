@@ -34,7 +34,7 @@ import (
 
 var (
 	authtoken       = flag.String("authtoken", "", "Oauth2 token for access to github API.")
-	authtokenFile   = flag.String("authtokenFile", "", "Oauth2 token file for access to github API.When provided It takes precedence over authtoken.")
+	authtokenFile   = flag.String("authtokenFile", "", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
 	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
 	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
@@ -58,7 +58,7 @@ const (
 	usage = `
 Usage of %s:
 
-Github receiver requires a github --authtoken or authtokenFile, target github --owner and
+Github receiver requires a github --authtoken or --authtokenFile, target github --owner and
 --repo names.
 
 `
