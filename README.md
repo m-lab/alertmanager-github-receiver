@@ -13,9 +13,9 @@ notifications.
 
 # Build
 ```
-make docker repo/imageName
+make docker DOCKER_TAG=repo/imageName
 ```
-This will build the binary and push it to repo/imageName
+This will build the binary and push it to repo/imageName.
 
 # Setup
 
