@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -33,6 +34,7 @@ import (
 
 var (
 	authtoken       = flag.String("authtoken", "", "Oauth2 token for access to github API.")
+	authtokenFile   = flag.String("authtokenFile", "", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
 	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
 	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
@@ -56,7 +58,7 @@ const (
 	usage = `
 Usage of %s:
 
-Github receiver requires a github --authtoken and target github --owner and
+Github receiver requires a github --authtoken or --authtokenFile, target github --owner and
 --repo names.
 
 `
@@ -84,15 +86,27 @@ func serveReceiverHandler(client alerts.ReceiverClient) {
 
 func main() {
 	flag.Parse()
-	if *authtoken == "" || *githubOrg == "" || *githubRepo == "" {
+	if (*authtoken == "" && *authtokenFile == "") || *githubOrg == "" || *githubRepo == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
+
+	var token string
+	if *authtokenFile != "" {
+		d, err := ioutil.ReadFile(*authtokenFile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		token = string(d)
+	} else {
+		token = *authtoken
+	}
+
 	var client alerts.ReceiverClient
 	if *enableInMemory {
 		client = local.NewClient()
 	} else {
-		client = issues.NewClient(*githubOrg, *authtoken)
+		client = issues.NewClient(*githubOrg, token)
 	}
 	serveReceiverHandler(client)
 }

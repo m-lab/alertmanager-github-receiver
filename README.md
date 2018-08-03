@@ -11,6 +11,12 @@ The alertmanager github receiver creates GitHub issues or posts new comments to 
 [Alertmanager](https://github.com/prometheus/alertmanager) webhook
 notifications.
 
+# Build
+```
+make docker DOCKER_TAG=repo/imageName
+```
+This will build the binary and push it to repo/imageName.
+
 # Setup
 
 ## Create GitHub access token

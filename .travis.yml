@@ -8,6 +8,9 @@ before_install:
   - go get github.com/mattn/goveralls
   - go get github.com/wadey/gocovmerge
 
+install:
+- go get -t ./...
+
 # Unconditionally place the repo at GOPATH/src/${go_import_path} to support
 # forks.
 go_import_path: github.com/m-lab/alertmanager-github-receiver

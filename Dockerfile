@@ -1,9 +1,14 @@
-FROM golang:1.8
+FROM golang:1.10
 
-ADD . /go/src/github.com/m-lab/alertmanager-github-receiver
+WORKDIR /go/src/github.com/m-lab/alertmanager-github-receiver
+ADD . ./
 
-# TODO(soltesz): vendor dependencies.
-RUN go get -v github.com/m-lab/alertmanager-github-receiver/cmd/github_receiver
+# TODO(soltesz): Use vgo for dependencies.
+RUN CGO_ENABLED=0 go get -v github.com/m-lab/alertmanager-github-receiver/cmd/github_receiver
 
-# RUN go install -v
-ENTRYPOINT ["/go/bin/github_receiver"]
+FROM alpine
+RUN apk add --no-cache ca-certificates && \
+    update-ca-certificates
+WORKDIR /
+COPY --from=0 /go/bin/github_receiver ./
+ENTRYPOINT ["/github_receiver"]
