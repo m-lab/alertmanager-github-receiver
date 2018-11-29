@@ -84,11 +84,13 @@ type Client struct {
 	GithubClient *github.Client
 	// org is the github user or organization name (e.g. github.com/<org>/<repo>).
 	org string
+	// alertLabel is the label applied to all alerts.
+	alertLabel string
 }
 
 // NewClient creates an Client authenticated using the Github authToken.
 // Future operations are only performed on the given github "org/repo".
-func NewClient(org, authToken string) *Client {
+func NewClient(org, authToken, alertLabel string) *Client {
 	ctx := context.Background()
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
@@ -96,16 +98,17 @@ func NewClient(org, authToken string) *Client {
 	client := &Client{
 		GithubClient: github.NewClient(oauth2.NewClient(ctx, tokenSource)),
 		org:          org,
+		alertLabel:   alertLabel,
 	}
 	return client
 }
 
 // CreateIssue creates a new Github issue. New issues are unassigned. Issues are
-// labeled with with an alert named "alert:boom:". Labels are created automatically
+// labeled with with an alert named alertLabel. Labels are created automatically
 // if they do not already exist in a repo.
 func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
 	labels := make([]string, len(extra)+1)
-	labels[0] = "alert:boom:"
+	labels[0] = c.alertLabel
 	for i := range extra {
 		labels[i+1] = extra[i]
 	}
@@ -113,7 +116,7 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 	issueReq := github.IssueRequest{
 		Title:  &title,
 		Body:   &body,
-		Labels: &labels, // Search using: label:"alert:boom:"
+		Labels: &labels, // Search using: label:alertLabel
 	}
 
 	// Enforce a timeout on the issue creation.
@@ -151,9 +154,9 @@ func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 		// number of "closed" issues. By only listing "open" issues we limit the
 		// number of issues returned.
 		//
-		// The search depends on all relevant issues including the "alert:boom:" label.
+		// The search depends on all relevant issues including the alertLabel label.
 		issues, resp, err := c.GithubClient.Search.Issues(
-			ctx, `is:issue in:title is:open org:`+c.org+` label:"alert:boom:"`, sopts)
+			ctx, `is:issue in:title is:open org:`+c.org+` label:"`+c.alertLabel+`"`, sopts)
 		updateRateMetrics("search", resp, err)
 		if err != nil {
 			log.Printf("Failed to list open github issues: %v\n", err)

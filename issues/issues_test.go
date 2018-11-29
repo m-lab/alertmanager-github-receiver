@@ -59,7 +59,7 @@ func teardownServer() {
 }
 
 func TestCreateIssue(t *testing.T) {
-	client := issues.NewClient("fake-owner", "FAKE-AUTH-TOKEN")
+	client := issues.NewClient("fake-owner", "FAKE-AUTH-TOKEN", "alert:boom:")
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
@@ -98,7 +98,7 @@ func TestCreateIssue(t *testing.T) {
 }
 
 func TestListOpenIssues(t *testing.T) {
-	client := issues.NewClient("owner", "FAKE-AUTH-TOKEN")
+	client := issues.NewClient("owner", "FAKE-AUTH-TOKEN", "alert:boom:")
 	// Override public github API with local server.
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
@@ -125,7 +125,7 @@ func TestListOpenIssues(t *testing.T) {
 }
 
 func TestCloseIssue(t *testing.T) {
-	client := issues.NewClient("owner", "FAKE-AUTH-TOKEN")
+	client := issues.NewClient("owner", "FAKE-AUTH-TOKEN", "alert:boom:")
 	client.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
