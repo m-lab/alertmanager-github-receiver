@@ -40,7 +40,7 @@ var (
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
 	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
 	receiverPort    = flag.String("port", "9393", "The port for accepting alertmanager webhook messages.")
-	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts")
+	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
 	extraLabels     = flag.StringArray("label", nil, "Extra labels to add to issues at creation time.")
 )
 

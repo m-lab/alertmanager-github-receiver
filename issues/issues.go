@@ -84,7 +84,8 @@ type Client struct {
 	GithubClient *github.Client
 	// org is the github user or organization name (e.g. github.com/<org>/<repo>).
 	org string
-	// alertLabel is the label applied to all alerts.
+	// alertLabel is the label applied to all alerts.  It is also used as
+	// the label to search to discover all existing alerts.
 	alertLabel string
 }
 
