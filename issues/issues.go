@@ -26,12 +26,13 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 )
 
 var (
-	rateLimit = prometheus.NewGaugeVec(
+	rateLimit = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "issues_api_rate_limit",
 			Help: "The limit of API requests the client can make.",
@@ -39,7 +40,7 @@ var (
 		// The GitHub API this rate limit applies to. e.g. "search" or "issues"
 		[]string{"api"},
 	)
-	rateRemaining = prometheus.NewGaugeVec(
+	rateRemaining = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "issues_api_rate_remaining",
 			Help: "The remaining API requests the client can make until reset time.",
@@ -47,7 +48,7 @@ var (
 		// The GitHub API this rate limit applies to. e.g. "search" or "issues"
 		[]string{"api"},
 	)
-	rateResetTime = prometheus.NewGaugeVec(
+	rateResetTime = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "issues_api_rate_reset",
 			Help: "The time when the current rate limit will reset.",
@@ -55,13 +56,13 @@ var (
 		// The GitHub API this rate limit applies to. e.g. "search" or "issues"
 		[]string{"api"},
 	)
-	rateErrorCount = prometheus.NewCounter(
+	rateErrorCount = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Name: "issues_api_rate_error_total",
 			Help: "Number of API operations that encountered an API rate limit error.",
 		},
 	)
-	operationCount = prometheus.NewCounterVec(
+	operationCount = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "issues_api_total",
 			Help: "Number of API operations performed.",
@@ -69,14 +70,6 @@ var (
 		[]string{"status"},
 	)
 )
-
-func init() {
-	prometheus.MustRegister(rateLimit)
-	prometheus.MustRegister(rateRemaining)
-	prometheus.MustRegister(rateResetTime)
-	prometheus.MustRegister(rateErrorCount)
-	prometheus.MustRegister(operationCount)
-}
 
 // A Client manages communication with the Github API.
 type Client struct {
