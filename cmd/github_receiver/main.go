@@ -28,6 +28,7 @@ import (
 	"github.com/m-lab/alertmanager-github-receiver/issues"
 	"github.com/m-lab/alertmanager-github-receiver/issues/local"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	flag "github.com/spf13/pflag"
 )
@@ -46,7 +47,7 @@ var (
 
 // Metrics.
 var (
-	receiverDuration = prometheus.NewHistogramVec(
+	receiverDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "github_receiver_duration_seconds",
 			Help: "A histogram of request latencies to the receiver handler.",
