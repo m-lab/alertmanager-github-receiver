@@ -3,7 +3,7 @@ package issues
 import (
 	"testing"
 
-	"github.com/m-lab/go/prometheusx"
+	"github.com/m-lab/go/prometheusx/promtest"
 )
 
 func TestMetrics(t *testing.T) {
@@ -11,5 +11,5 @@ func TestMetrics(t *testing.T) {
 	rateRemaining.WithLabelValues("x")
 	rateResetTime.WithLabelValues("x")
 	operationCount.WithLabelValues("x")
-	prometheusx.LintMetrics(t)
+	promtest.LintMetrics(t)
 }
