@@ -27,6 +27,7 @@ import (
 	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
 	"github.com/m-lab/alertmanager-github-receiver/issues/local"
+	_ "github.com/m-lab/go/prometheusx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
