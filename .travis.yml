@@ -6,10 +6,9 @@ go:
 before_install:
   # Coverage tools
   - go get github.com/mattn/goveralls
-  - go get github.com/wadey/gocovmerge
 
 install:
-- go get -t ./...
+- go get -t -v ./...
 
 # Unconditionally place the repo at GOPATH/src/${go_import_path} to support
 # forks.
@@ -17,9 +16,7 @@ go_import_path: github.com/m-lab/alertmanager-github-receiver
 
 script:
 # Run unit tests.
-- go test -covermode=count -coverprofile=alerts.cov -v github.com/m-lab/alertmanager-github-receiver/alerts
-- go test -covermode=count -coverprofile=issues.cov -v github.com/m-lab/alertmanager-github-receiver/issues
+- go test -covermode=count -coverprofile=coverage.cov -coverpkg=github.com/m-lab/alertmanager-github-receiver/... github.com/m-lab/alertmanager-github-receiver/...
 
 # Coveralls
-- $HOME/gopath/bin/gocovmerge alerts.cov issues.cov > merge.cov
-- $HOME/gopath/bin/goveralls -coverprofile=merge.cov -service=travis-ci
+- $HOME/gopath/bin/goveralls -coverprofile=coverage.cov -service=travis-ci
