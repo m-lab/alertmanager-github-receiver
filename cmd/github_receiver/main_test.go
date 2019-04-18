@@ -1,7 +1,10 @@
 package main
 
 import (
+	"flag"
+	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/m-lab/go/prometheusx/promtest"
 )
@@ -9,4 +12,44 @@ import (
 func TestMetrics(t *testing.T) {
 	receiverDuration.WithLabelValues("x")
 	promtest.LintMetrics(t)
+}
+
+func Test_main(t *testing.T) {
+	tests := []struct {
+		name      string
+		authfile  string
+		authtoken string
+		repo      string
+		inmemory  bool
+	}{
+		{
+			name:      "okay-default",
+			repo:      "fake-repo",
+			authtoken: "token",
+			inmemory:  false,
+		},
+		{
+			name:     "okay-inmemory",
+			authfile: "fake-token",
+			repo:     "fake-repo",
+			inmemory: true,
+		},
+		{
+			name: "missing-flags-usage",
+		},
+	}
+	flag.CommandLine.SetOutput(ioutil.Discard)
+	osExit = func(int) {}
+	for _, tt := range tests {
+		*authtoken = tt.authtoken
+		authtokenFile = []byte(tt.authfile)
+		*githubOrg = "fake-org"
+		*githubRepo = tt.repo
+		*enableInMemory = tt.inmemory
+		t.Run(tt.name, func(t *testing.T) {
+			go main()
+			cancelCtx()
+			time.Sleep(100 * time.Millisecond)
+		})
+	}
 }

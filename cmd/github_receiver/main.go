@@ -18,32 +18,35 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
+
+	"github.com/m-lab/go/httpx"
+	"github.com/m-lab/go/rtx"
 
 	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
 	"github.com/m-lab/alertmanager-github-receiver/issues/local"
-	_ "github.com/m-lab/go/prometheusx"
+	"github.com/m-lab/go/flagx"
+	"github.com/m-lab/go/prometheusx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	flag "github.com/spf13/pflag"
 )
 
 var (
 	authtoken       = flag.String("authtoken", "", "Oauth2 token for access to github API.")
-	authtokenFile   = flag.String("authtokenFile", "", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
+	authtokenFile   = flagx.FileBytes{}
 	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
 	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
 	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
-	receiverPort    = flag.String("port", "9393", "The port for accepting alertmanager webhook messages.")
+	receiverAddr    = flag.String("webhook.listen-address", ":9393", "Listen on address for new alertmanager webhook messages.")
 	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
-	extraLabels     = flag.StringArray("label", nil, "Extra labels to add to issues at creation time.")
+	extraLabels     = flagx.StringArray{}
 )
 
 // Metrics.
@@ -57,50 +60,65 @@ var (
 	)
 )
 
+var (
+	ctx, cancelCtx = context.WithCancel(context.Background())
+	osExit         = os.Exit
+)
+
 const (
 	usage = `
-Usage of %s:
+NAME
+  github_receiver receives Alertmanager webhook notifications and creates
+  corresponding issues on Github.
 
-Github receiver requires a github --authtoken or --authtokenFile, target github --owner and
---repo names.
+DESCRIPTION
+  The github_receiver authenticates all actions using the given --authtoken
+  or the value read from --authtokenFile. As well, the given --org and --repo
+  names are used as the default destination for new issues.
 
+EXAMPLE
+  github_receiver -org <name> -repo <repo> -authtoken <token>
 `
 )
 
 func init() {
+	flag.Var(&extraLabels, "label", "Extra labels to add to issues at creation time.")
+	flag.Var(&authtokenFile, "authtokenFile", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, usage, os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), usage)
 		flag.PrintDefaults()
 	}
 }
 
-func serveReceiverHandler(client alerts.ReceiverClient) {
-	receiverHandler := &alerts.ReceiverHandler{
+func mustServeWebhookReceiver(client alerts.ReceiverClient) *http.Server {
+	receiver := &alerts.ReceiverHandler{
 		Client:      client,
 		DefaultRepo: *githubRepo,
 		AutoClose:   *enableAutoClose,
-		ExtraLabels: *extraLabels,
+		ExtraLabels: extraLabels,
 	}
-	http.Handle("/", &issues.ListHandler{ListClient: client})
-	http.Handle("/v1/receiver", promhttp.InstrumentHandlerDuration(receiverDuration, receiverHandler))
-	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(":"+*receiverPort, nil))
+	mux := http.NewServeMux()
+	mux.Handle("/", &issues.ListHandler{ListClient: client})
+	mux.Handle("/v1/receiver", promhttp.InstrumentHandlerDuration(receiverDuration, receiver))
+	srv := &http.Server{
+		Addr:    *receiverAddr,
+		Handler: mux,
+	}
+	rtx.Must(httpx.ListenAndServeAsync(srv), "Failed to start webhook receiver server")
+	return srv
 }
 
 func main() {
 	flag.Parse()
-	if (*authtoken == "" && *authtokenFile == "") || *githubOrg == "" || *githubRepo == "" {
+	if (*authtoken == "" && len(authtokenFile) == 0) || *githubOrg == "" || *githubRepo == "" {
 		flag.Usage()
-		os.Exit(1)
+		osExit(1)
+		return
 	}
 
 	var token string
-	if *authtokenFile != "" {
-		d, err := ioutil.ReadFile(*authtokenFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-		token = string(d)
+	if len(authtokenFile) != 0 {
+		token = string(authtokenFile)
 	} else {
 		token = *authtoken
 	}
@@ -111,5 +129,10 @@ func main() {
 	} else {
 		client = issues.NewClient(*githubOrg, token, *alertLabel)
 	}
-	serveReceiverHandler(client)
+	promSrv := prometheusx.MustServeMetrics()
+	defer promSrv.Close()
+
+	srv := mustServeWebhookReceiver(client)
+	defer srv.Close()
+	<-ctx.Done()
 }
