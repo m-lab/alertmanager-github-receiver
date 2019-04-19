@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-github/github"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
@@ -219,35 +220,6 @@ func TestClient_ListOpenIssues(t *testing.T) {
 	}
 }
 
-func xxxTestCloseIssue(t *testing.T) {
-	client := issues.NewClient("owner", "FAKE-AUTH-TOKEN", "alert:boom:")
-	client.GithubClient.BaseURL = setupServer()
-	defer teardownServer()
-
-	u := "https://api.github.com/repos/fake-owner/fake-repo"
-	testMux.HandleFunc("/repos/fake-owner/fake-repo/issues/1", func(w http.ResponseWriter, r *http.Request) {
-		v := &github.IssueRequest{}
-		err := json.NewDecoder(r.Body).Decode(v)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		// Fake result.
-		fmt.Fprintf(w, `{"number":1, "repository_url":"%s"}`, u)
-	})
-
-	openIssue := &github.Issue{Number: github.Int(1), RepositoryURL: &u}
-
-	closedIssue, err := client.CloseIssue(openIssue)
-	if err != nil {
-		t.Errorf("CloseIssue returned error: %v", err)
-	}
-
-	if !reflect.DeepEqual(openIssue, closedIssue) {
-		t.Errorf("CloseIssue returned %+v, want %+v", closedIssue, openIssue)
-	}
-}
-
 func TestClient_CloseIssue(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -331,5 +303,35 @@ func TestClient_CloseIssue(t *testing.T) {
 				t.Errorf("Client.CloseIssue() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestClient_rateLimit(t *testing.T) {
+	c := issues.NewClient("fake-org", "FAKE-AUTH-TOKEN", "alert")
+	c.GithubClient.BaseURL = setupServer()
+	defer teardownServer()
+
+	testMux.HandleFunc("/repos/fake-org/fake-repo/issues", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-RateLimit-Limit", "5000")
+		w.Header().Set("X-RateLimit-Remaining", "0") // No remaining API requests.
+		t := time.Now().Add(time.Hour).Unix()        // Guarantee a future reset time.
+		w.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%d", t))
+
+		fmt.Fprint(w, `{"number":1}`)
+	})
+
+	// Call once with fresh client to populate the x-ratelimit values returned
+	// by the server.
+	_, err := c.CreateIssue("fake-repo", "fake-title", "fake-body", nil)
+	if err != nil {
+		t.Errorf("Client.CreateIssue() error = %v, wantErr nil", err)
+		return
+	}
+
+	// Use the same client again, and expect an error due to rate limits.
+	_, err = c.CreateIssue("fake-repo", "fake-title", "fake-body", nil)
+	if err == nil {
+		t.Errorf("Client.CreateIssue() want nil, got %v", err)
+		return
 	}
 }
