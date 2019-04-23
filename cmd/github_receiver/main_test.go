@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"io/ioutil"
+	"sync"
 	"testing"
 	"time"
 
@@ -47,8 +48,14 @@ func Test_main(t *testing.T) {
 		*githubRepo = tt.repo
 		*enableInMemory = tt.inmemory
 		t.Run(tt.name, func(t *testing.T) {
-			go main()
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				main()
+				wg.Done()
+			}()
 			cancelCtx()
+			wg.Wait()
 			time.Sleep(100 * time.Millisecond)
 		})
 	}
