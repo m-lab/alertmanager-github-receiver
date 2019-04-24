@@ -126,7 +126,7 @@ func TestClient_CreateIssue(t *testing.T) {
 			})
 
 			got, err := c.CreateIssue(tt.repo, tt.title, tt.body, tt.extra)
-			if (err == nil) == tt.wantErr {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.CreateIssue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -209,7 +209,7 @@ func TestClient_ListOpenIssues(t *testing.T) {
 			})
 
 			got, err := c.ListOpenIssues()
-			if (err == nil) == tt.wantErr {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.ListOpenIssues() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -295,7 +295,7 @@ func TestClient_CloseIssue(t *testing.T) {
 			})
 
 			got, err := c.CloseIssue(tt.issue)
-			if (err == nil) == tt.wantErr {
+			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.CloseIssue() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
