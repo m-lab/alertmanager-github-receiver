@@ -5,7 +5,6 @@ import (
 	"io/ioutil"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/m-lab/go/prometheusx/promtest"
 )
@@ -56,7 +55,6 @@ func Test_main(t *testing.T) {
 			}()
 			cancelCtx()
 			wg.Wait()
-			time.Sleep(100 * time.Millisecond)
 		})
 	}
 }
