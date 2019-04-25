@@ -12,66 +12,98 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //////////////////////////////////////////////////////////////////////////////
-package issues_test
+package issues
 
 import (
-	"io/ioutil"
+	"fmt"
+	"html/template"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/google/go-github/github"
-
-	"github.com/m-lab/alertmanager-github-receiver/issues"
 )
 
 type fakeClient struct {
 	issues []*github.Issue
+	err    error
 }
 
 func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
-	return f.issues, nil
+	return f.issues, f.err
 }
-
-func TestListHandler(t *testing.T) {
-	expected := `
-<html><body>
-<h2>Open Issues</h2>
-<table>
-
-  <tr><td><a href=http://foo.bar>issue1 title</a></td></tr>
-
-</table>
-<br/>
-Receiver metrics: <a href="/metrics">/metrics</a>
-</body></html>`
-	f := &fakeClient{
-		[]*github.Issue{
-			&github.Issue{
-				HTMLURL: github.String("http://foo.bar"),
-				Title:   github.String("issue1 title"),
+func TestListHandler_ServeHTTP(t *testing.T) {
+	tests := []struct {
+		name           string
+		listClient     ListClient
+		method         string
+		expectedStatus int
+		wantErr        bool
+		template       *template.Template
+	}{
+		{
+			name:           "okay",
+			method:         http.MethodGet,
+			expectedStatus: http.StatusOK,
+			listClient: &fakeClient{
+				issues: []*github.Issue{
+					&github.Issue{
+						HTMLURL: github.String("http://foo.bar"),
+						Title:   github.String("issue1 title"),
+					},
+				},
+				err: nil,
 			},
+			template: listTemplate,
+		},
+		{
+			name:           "issues-error",
+			method:         http.MethodGet,
+			expectedStatus: http.StatusInternalServerError,
+			listClient: &fakeClient{
+				issues: nil,
+				err:    fmt.Errorf("Fake error"),
+			},
+			template: listTemplate,
+		},
+		{
+			name:           "bad-method",
+			method:         http.MethodPost,
+			expectedStatus: http.StatusMethodNotAllowed,
+		},
+		{
+			name:           "bad-template",
+			method:         http.MethodGet,
+			expectedStatus: http.StatusInternalServerError,
+			listClient: &fakeClient{
+				issues: []*github.Issue{
+					&github.Issue{
+						HTMLURL: github.String("http://foo.bar"),
+						Title:   github.String("issue1 title"),
+					},
+				},
+				err: nil,
+			},
+			template: template.Must(template.New("list").Parse(`{{range .}}{{.KeyDoesNotExist}}{{end}}`)),
 		},
 	}
-	// Create a response recorder.
-	rw := httptest.NewRecorder()
-	// Create a synthetic request object for ServeHTTP.
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Run the list handler.
-	handler := issues.ListHandler{ListClient: f}
-	handler.ServeHTTP(rw, req)
-	resp := rw.Result()
-
-	// Check the results.
-	body, _ := ioutil.ReadAll(resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("ListHandler got %d; want %d", resp.StatusCode, http.StatusOK)
-	}
-	if expected != string(body) {
-		t.Errorf("ListHandler got %q; want %q", string(body), expected)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a response recorder.
+			rw := httptest.NewRecorder()
+			// Create a synthetic request object for ServeHTTP.
+			req, err := http.NewRequest(tt.method, "/", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			lh := &ListHandler{
+				ListClient: tt.listClient,
+			}
+			listTemplate = tt.template
+			lh.ServeHTTP(rw, req)
+			if rw.Code != tt.expectedStatus {
+				t.Errorf("ListHandler wrong status; want %d, got %d", tt.expectedStatus, rw.Code)
+			}
+		})
 	}
 }

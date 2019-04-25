@@ -16,6 +16,7 @@
 package issues
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -33,7 +34,7 @@ const (
 {{end}}
 </table>
 <br/>
-Receiver metrics: <a href="/metrics">/metrics</a>
+Receiver metrics: <a href="/metrics" onclick="javascript:event.target.port=9990">/metrics</a>
 </body></html>`
 )
 
@@ -54,7 +55,8 @@ type ListHandler struct {
 // ServeHTTP lists open issues from github for view in a browser.
 func (lh *ListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	if req.URL.Path != "/" || req.Method != http.MethodGet {
-		http.NotFound(rw, req)
+		rw.WriteHeader(http.StatusMethodNotAllowed)
+		fmt.Fprintf(rw, "Wrong method\n")
 		return
 	}
 	issues, err := lh.ListOpenIssues()
@@ -63,10 +65,12 @@ func (lh *ListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(rw, "%s\n", err)
 		return
 	}
-	err = listTemplate.Execute(rw, &issues)
+	var buf bytes.Buffer
+	err = listTemplate.Execute(&buf, &issues)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(rw, "%s\n", err)
 		return
 	}
+	rw.Write(buf.Bytes())
 }
