@@ -5,8 +5,8 @@ import (
 	"io/ioutil"
 	"sync"
 	"testing"
-	"time"
 
+	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/prometheusx/promtest"
 )
 
@@ -47,6 +47,9 @@ func Test_main(t *testing.T) {
 		*githubOrg = "fake-org"
 		*githubRepo = tt.repo
 		*enableInMemory = tt.inmemory
+		// Guarantee no port conflicts between tests of main.
+		*prometheusx.ListenAddress = ":0"
+		*receiverAddr = ":0"
 		t.Run(tt.name, func(t *testing.T) {
 			wg := sync.WaitGroup{}
 			wg.Add(1)
@@ -56,8 +59,6 @@ func Test_main(t *testing.T) {
 			}()
 			cancelCtx()
 			wg.Wait()
-			// Sleep briefly to give metrics server (:9990) time to shutdown.
-			time.Sleep(100 * time.Millisecond)
 		})
 	}
 }
