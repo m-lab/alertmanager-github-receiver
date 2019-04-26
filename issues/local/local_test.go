@@ -72,6 +72,12 @@ func TestMemoryClient(t *testing.T) {
 			if !reflect.DeepEqual(closed, got) {
 				t.Errorf("Client.CloseIssue() = %v, want %v", closed, got)
 			}
+			_, err = c.CloseIssue(&github.Issue{
+				Title: github.String("cannot-close-missing-issue"),
+			})
+			if err == nil {
+				t.Errorf("Client.CloseIssue(), got nil, want error")
+			}
 		})
 	}
 }
