@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/google/go-github/github"
-	// "github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 )
