@@ -120,9 +120,6 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 		msgAlertStatus string
 		msgRepo        string
 		fakeClient     *fakeClient
-		AutoClose      bool
-		DefaultRepo    string
-		ExtraLabels    []string
 		httpStatus     int
 		wantMessageErr bool
 		wantReadErr    bool
@@ -137,9 +134,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 					createIssue("DiskRunningFull", "body1", ""),
 				},
 			},
-			AutoClose:   true,
-			DefaultRepo: "default",
-			httpStatus:  http.StatusOK,
+			httpStatus: http.StatusOK,
 		},
 		{
 			name:           "successful-create",
@@ -147,8 +142,6 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			msgAlert:       "DiskRunningFull",
 			msgAlertStatus: "firing",
 			fakeClient:     &fakeClient{},
-			AutoClose:      true,
-			DefaultRepo:    "default",
 			httpStatus:     http.StatusOK,
 		},
 		{
@@ -158,8 +151,6 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			msgAlertStatus: "firing",
 			msgRepo:        "custom-repo",
 			fakeClient:     &fakeClient{},
-			AutoClose:      true,
-			DefaultRepo:    "default",
 			httpStatus:     http.StatusOK,
 		},
 		{
@@ -172,9 +163,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 					createIssue("DiskRunningFull", "body1", ""),
 				},
 			},
-			AutoClose:   true,
-			DefaultRepo: "default",
-			httpStatus:  http.StatusOK,
+			httpStatus: http.StatusOK,
 		},
 		{
 			name:           "failure-unmarshal-error",
@@ -194,9 +183,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			fakeClient: &fakeClient{
 				listError: fmt.Errorf("Fake error listing current issues"),
 			},
-			AutoClose:   true,
-			DefaultRepo: "default",
-			httpStatus:  http.StatusInternalServerError,
+			httpStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "failure-wrong-method",
@@ -206,15 +193,18 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var msgReader io.Reader
-			var msg io.ReadWriter
-			msg = marshalWebhookMessage(createWebhookMessage(tt.msgAlert, tt.msgAlertStatus, tt.msgRepo))
+			// Generate fake webhook message buffer.
+			msg := marshalWebhookMessage(createWebhookMessage(tt.msgAlert, tt.msgAlertStatus, tt.msgRepo))
 			if tt.wantMessageErr {
 				// Deliberately corrupt the json content by adding extra braces.
 				msg.Write([]byte{'}', '{'})
 			}
+
+			// Convert the webhook message into an io.Reader.
+			var msgReader io.Reader
 			msgReader = msg
 			if tt.wantReadErr {
+				// Override the reader to return an error on read.
 				msgReader = &errorReader{}
 			}
 
@@ -229,9 +219,9 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 
 			rh := &ReceiverHandler{
 				Client:      tt.fakeClient,
-				AutoClose:   tt.AutoClose,
-				DefaultRepo: tt.DefaultRepo,
-				ExtraLabels: tt.ExtraLabels,
+				AutoClose:   true,
+				DefaultRepo: "default",
+				ExtraLabels: nil,
 			}
 			rh.ServeHTTP(rw, req)
 			resp := rw.Result()
@@ -260,7 +250,6 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			if string(body) != "" {
 				t.Errorf("ReceiverHandler got %q; want empty body", string(body))
 			}
-
 		})
 	}
 }
