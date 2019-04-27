@@ -35,8 +35,6 @@ type fakeClient struct {
 	createdIssue *github.Issue
 	closedIssue  *github.Issue
 	listError    error
-	createError  error
-	closeError   error
 }
 
 func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
@@ -49,18 +47,12 @@ func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
 
 func (f *fakeClient) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
 	fmt.Println("create issue")
-	if f.createError != nil {
-		return nil, f.createError
-	}
 	f.createdIssue = createIssue(title, body, repo)
 	return f.createdIssue, nil
 }
 
 func (f *fakeClient) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	fmt.Println("close issue")
-	if f.closeError != nil {
-		return nil, f.closeError
-	}
 	f.closedIssue = issue
 	return issue, nil
 }
