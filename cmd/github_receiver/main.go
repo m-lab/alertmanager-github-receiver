@@ -110,6 +110,7 @@ func mustServeWebhookReceiver(client alerts.ReceiverClient) *http.Server {
 
 func main() {
 	flag.Parse()
+	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Failed to read ArgsFromEnv")
 	if (*authtoken == "" && len(authtokenFile) == 0) || *githubOrg == "" || *githubRepo == "" {
 		flag.Usage()
 		osExit(1)

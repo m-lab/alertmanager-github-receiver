@@ -17,13 +17,11 @@ package alerts
 
 import (
 	"encoding/json"
-
-	"github.com/google/go-github/github"
-	//"github.com/kr/pretty"
 	"io/ioutil"
 	"log"
 	"net/http"
 
+	"github.com/google/go-github/github"
 	"github.com/prometheus/alertmanager/notify"
 )
 
