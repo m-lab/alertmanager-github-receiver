@@ -23,6 +23,18 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	receivedAlerts = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "amreceiver_alerts_total",
+			Help: "Number of incoming alerts from AlertManager.",
+		},
+		[]string{"name", "state"},
+	)
 )
 
 // ReceiverClient defines all issue operations needed by the ReceiverHandler.
@@ -111,6 +123,8 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 			break
 		}
 	}
+
+	receivedAlerts.WithLabelValues(msgTitle, msg.Data.Status).Inc()
 
 	// The message is currently firing and we did not find a matching
 	// issue from github, so create a new issue.
