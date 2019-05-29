@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m-lab/go/prometheusx/promtest"
+
 	"github.com/google/go-github/github"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
@@ -244,4 +246,9 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMetrics(t *testing.T) {
+	receivedAlerts.WithLabelValues("x", "y")
+	promtest.LintMetrics(t)
 }

@@ -23,6 +23,27 @@ import (
 
 	"github.com/google/go-github/github"
 	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	receivedAlerts = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "githubreceiver_alerts_total",
+			Help: "Number of incoming alerts from AlertManager.",
+		},
+		[]string{"alertname", "status"},
+	)
+
+	createdIssues = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "githubreceiver_created_issues_total",
+			Help: "Number of firing issues for which an alert has been created.",
+		},
+		// Here "status" can only be "firing" thus it's not a label.
+		[]string{"alertname"},
+	)
 )
 
 // ReceiverClient defines all issue operations needed by the ReceiverHandler.
@@ -112,11 +133,17 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 		}
 	}
 
+	var alertName = msg.Data.GroupLabels["alertname"]
+	receivedAlerts.WithLabelValues(alertName, msg.Data.Status).Inc()
+
 	// The message is currently firing and we did not find a matching
 	// issue from github, so create a new issue.
 	if msg.Data.Status == "firing" && foundIssue == nil {
 		msgBody := formatIssueBody(msg)
 		_, err := rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, rh.ExtraLabels)
+		if err == nil {
+			createdIssues.WithLabelValues(alertName).Inc()
+		}
 		return err
 	}
 
