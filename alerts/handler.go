@@ -30,10 +30,19 @@ import (
 var (
 	receivedAlerts = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "amreceiver_alerts_total",
+			Name: "githubreceiver_alerts_total",
 			Help: "Number of incoming alerts from AlertManager.",
 		},
-		[]string{"name", "state"},
+		[]string{"alertname", "status"},
+	)
+
+	createdIssues = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "githubreceiver_created_issues_total",
+			Help: "Number of firing issues for which an alert has been created.",
+		},
+		// Here "status" can only be "firing" thus it's not a label.
+		[]string{"alertname"},
 	)
 )
 
@@ -124,13 +133,17 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 		}
 	}
 
-	receivedAlerts.WithLabelValues(msgTitle, msg.Data.Status).Inc()
+	var alertName = msg.Data.GroupLabels["alertname"]
+	receivedAlerts.WithLabelValues(alertName, msg.Data.Status).Inc()
 
 	// The message is currently firing and we did not find a matching
 	// issue from github, so create a new issue.
 	if msg.Data.Status == "firing" && foundIssue == nil {
 		msgBody := formatIssueBody(msg)
 		_, err := rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, rh.ExtraLabels)
+		if err == nil {
+			createdIssues.WithLabelValues(alertName).Inc()
+		}
 		return err
 	}
 
