@@ -22,7 +22,7 @@ import (
 	"net/http"
 
 	"github.com/google/go-github/github"
-	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/notify/webhook"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -91,7 +91,7 @@ func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	// The WebhookMessage is dependent on alertmanager version. Parse it.
-	msg := &notify.WebhookMessage{}
+	msg := &webhook.Message{}
 	if err := json.Unmarshal(alertBytes, msg); err != nil {
 		log.Printf("Failed to parse webhook message from %s: %s", req.RemoteAddr, err)
 		log.Printf("%s", string(alertBytes))
@@ -113,7 +113,7 @@ func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 }
 
 // processAlert processes an alertmanager webhook message.
-func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
+func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
 	// TODO(dev): replace list-and-search with search using labels.
 	// TODO(dev): Cache list results.
 	// List known issues from github.
@@ -165,7 +165,7 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 // getTargetRepo returns a suitable github repository for creating an issue for
 // the given alert message. If the alert includes a "repo" label, then getTargetRepo
 // uses that value. Otherwise, getTargetRepo uses the ReceiverHandler's default repo.
-func (rh *ReceiverHandler) getTargetRepo(msg *notify.WebhookMessage) string {
+func (rh *ReceiverHandler) getTargetRepo(msg *webhook.Message) string {
 	repo := msg.CommonLabels["repo"]
 	if repo != "" {
 		return repo
