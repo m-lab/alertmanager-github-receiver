@@ -18,9 +18,10 @@ package alerts
 import (
 	"bytes"
 	"fmt"
-	"github.com/prometheus/alertmanager/notify"
 	"html/template"
 	"log"
+
+	"github.com/prometheus/alertmanager/notify/webhook"
 )
 
 const (
@@ -76,17 +77,17 @@ var (
 	alertTemplate = template.Must(template.New("alert").Parse(alertMD))
 )
 
-func id(msg *notify.WebhookMessage) string {
+func id(msg *webhook.Message) string {
 	return fmt.Sprintf("0x%x", msg.GroupKey)
 }
 
 // formatTitle constructs an issue title from a webhook message.
-func formatTitle(msg *notify.WebhookMessage) string {
+func formatTitle(msg *webhook.Message) string {
 	return fmt.Sprintf("%s", msg.Data.GroupLabels["alertname"])
 }
 
 // formatIssueBody constructs an issue body from a webhook message.
-func formatIssueBody(msg *notify.WebhookMessage) string {
+func formatIssueBody(msg *webhook.Message) string {
 	var buf bytes.Buffer
 	err := alertTemplate.Execute(&buf, msg)
 	if err != nil {

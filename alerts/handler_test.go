@@ -28,7 +28,7 @@ import (
 	"github.com/m-lab/go/prometheusx/promtest"
 
 	"github.com/google/go-github/github"
-	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/notify/webhook"
 	"github.com/prometheus/alertmanager/template"
 )
 
@@ -59,8 +59,8 @@ func (f *fakeClient) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	return issue, nil
 }
 
-func createWebhookMessage(alertname, status, repo string) *notify.WebhookMessage {
-	msg := &notify.WebhookMessage{
+func createWebhookMessage(alertname, status, repo string) *webhook.Message {
+	msg := &webhook.Message{
 		Data: &template.Data{
 			Receiver: "webhook",
 			Status:   status,
@@ -86,7 +86,7 @@ func createWebhookMessage(alertname, status, repo string) *notify.WebhookMessage
 	return msg
 }
 
-func marshalWebhookMessage(msg *notify.WebhookMessage) *bytes.Buffer {
+func marshalWebhookMessage(msg *webhook.Message) *bytes.Buffer {
 	b, _ := json.Marshal(msg)
 	return bytes.NewBuffer(b)
 }
