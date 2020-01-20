@@ -211,11 +211,9 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				return
 			}
 
-			rh := &ReceiverHandler{
-				Client:      tt.fakeClient,
-				AutoClose:   true,
-				DefaultRepo: "default",
-				ExtraLabels: nil,
+			rh, err := NewReceiver(tt.fakeClient, "default", true, nil, nil)
+			if err != nil {
+				t.Fatal(err)
 			}
 			rh.ServeHTTP(rw, req)
 			resp := rw.Result()

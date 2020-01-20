@@ -81,3 +81,43 @@ msg='{
 curl -XPOST --data-binary "${msg}" http://localhost:9393/v1/receiver
 ```
 
+# Configuration
+
+The program takes the following options:
+```
+  -alertlabel string
+    	The default label applied to all alerts. Also used to search the repo to discover exisitng alerts. (default "alert:boom:")
+  -authtoken string
+    	Oauth2 token for access to github API.
+  -authtokenFile value
+    	Oauth2 token file for access to github API. When provided it takes precedence over authtoken.
+  -enable-auto-close
+    	Once an alert stops firing, automatically close open issues.
+  -enable-inmemory
+    	Perform all operations in memory, without using github API.
+  -label value
+    	Extra labels to add to issues at creation time. (default []string{})
+  -org string
+    	The github user or organization name where all repos are found.
+  -prometheusx.listen-address string
+    	 (default ":9990")
+  -repo string
+    	The default repository for creating issues when alerts do not include a repo label.
+  -title-template-files value
+    	File(s) containing a template to generate issue titles. (default []string{})
+  -webhook.listen-address string
+    	Listen on address for new alertmanager webhook messages. (default ":9393")
+```
+
+## Auto close
+
+If `-enable-auto-close` is specified, the program will close each issue as its corresponding alert is resolved. It searches for
+matching issues by filtering open issues on the value of `-alertlabel` and then matching issue titles. The issue title template can
+be overridden using `-title-template-files` for greater (or lesser) specificity. The default template is
+`{{ .Data.GroupLabels.alertname }}`, which sets the issue title to the alert name. The template is passed a
+[Message](https://godoc.org/github.com/prometheus/alertmanager/notify/webhook#Message) as its argument.
+
+## Repository
+
+If the alert includes a `repo` label, issues will be created in that repository, under the GitHub organization specified by `-org`.
+If no `repo` label is present, issues will be created in the repository specified by the `-repo` option.

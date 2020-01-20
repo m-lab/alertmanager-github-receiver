@@ -17,7 +17,13 @@ package alerts
 
 import (
 	"html/template"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/prometheus/alertmanager/notify/webhook"
+	amtmpl "github.com/prometheus/alertmanager/template"
 )
 
 func Test_formatIssueBody(t *testing.T) {
@@ -31,5 +37,38 @@ func Test_formatIssueBody(t *testing.T) {
 	got := formatIssueBody(wh)
 	if got != "" {
 		t.Errorf("formatIssueBody() = %q, want empty string", got)
+	}
+}
+
+func TestFormatTitle(t *testing.T) {
+	dir, err := ioutil.TempDir("", "github-receiver")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	aName := filepath.Join(dir, "a.tmpl")
+	bName := filepath.Join(dir, "b.tmpl")
+	if err := ioutil.WriteFile(aName, []byte(`{{ template "b" . }}`), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+	if err := ioutil.WriteFile(bName, []byte(`{{ define "b" }}b is {{ .Status }}{{ end }}`), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
+
+	rh, err := NewReceiver(&fakeClient{}, "default", false, nil, []string{aName, bName})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msg := webhook.Message{
+		Data: &amtmpl.Data{Status: "firing"},
+	}
+	title, err := rh.formatTitle(&msg)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if title != "b is firing" {
+		t.Error(title)
 	}
 }

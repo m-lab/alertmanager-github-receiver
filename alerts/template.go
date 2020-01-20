@@ -71,6 +71,10 @@ Alertmanager URL: {{.Data.ExternalURL}}
 
 TODO: add graph url from annotations.
 `
+
+	// DefaultTitleTmpl will be used to format the title string if it's not
+	// overridden.
+	DefaultTitleTmpl = `{{ .Data.GroupLabels.alertname }}`
 )
 
 var (
@@ -82,8 +86,12 @@ func id(msg *webhook.Message) string {
 }
 
 // formatTitle constructs an issue title from a webhook message.
-func formatTitle(msg *webhook.Message) string {
-	return fmt.Sprintf("%s", msg.Data.GroupLabels["alertname"])
+func (rh *ReceiverHandler) formatTitle(msg *webhook.Message) (string, error) {
+	var title bytes.Buffer
+	if err := rh.titleTmpl.Execute(&title, msg); err != nil {
+		return "", err
+	}
+	return title.String(), nil
 }
 
 // formatIssueBody constructs an issue body from a webhook message.
