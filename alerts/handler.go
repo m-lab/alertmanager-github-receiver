@@ -86,11 +86,8 @@ func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, extra
 	}
 
 	var err error
-	if titleTmplFiles == nil {
-		rh.titleTmpl, err = template.New("title").Parse(DefaultTitleTmpl)
-		if err != nil {
-			return nil, fmt.Errorf("parsing default template %q: %s", DefaultTitleTmpl, err)
-		}
+	if titleTmplFiles == nil || len(titleTmplFiles) == 0 {
+		rh.titleTmpl = template.Must(template.New("title").Parse(DefaultTitleTmpl))
 	} else {
 		rh.titleTmpl, err = template.ParseFiles(titleTmplFiles...)
 		if err != nil {
@@ -144,7 +141,6 @@ func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 
 // processAlert processes an alertmanager webhook message.
 func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
-	// TODO(dev): replace list-and-search with search using labels.
 	// TODO(dev): Cache list results.
 	// List known issues from github.
 	issues, err := rh.Client.ListOpenIssues()
