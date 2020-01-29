@@ -2,9 +2,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io/ioutil"
-	"os"
 	"sync"
 	"testing"
 
@@ -67,20 +65,9 @@ func Test_main(t *testing.T) {
 		*prometheusx.ListenAddress = ":0"
 		*receiverAddr = ":0"
 
-		// Create template files.
+		// Create template file.
 		if tt.titleTmpl != "" {
-			file, err := ioutil.TempFile("", "github-receiver")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.Remove(file.Name())
-			if _, err := fmt.Fprint(file, tt.titleTmpl); err != nil {
-				t.Fatal(err)
-			}
-			if err := file.Close(); err != nil {
-				t.Fatal(err)
-			}
-			titleTmplFiles = append(titleTmplFiles, file.Name())
+			titleTmplFile = ([]byte)(tt.titleTmpl)
 		}
 
 		t.Run(tt.name, func(t *testing.T) {

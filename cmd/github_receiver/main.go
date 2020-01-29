@@ -47,7 +47,7 @@ var (
 	receiverAddr    = flag.String("webhook.listen-address", ":9393", "Listen on address for new alertmanager webhook messages.")
 	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
 	extraLabels     = flagx.StringArray{}
-	titleTmplFiles  = flagx.StringArray{}
+	titleTmplFile   = flagx.FileBytes{}
 )
 
 // Metrics.
@@ -85,7 +85,7 @@ EXAMPLE
 func init() {
 	flag.Var(&extraLabels, "label", "Extra labels to add to issues at creation time.")
 	flag.Var(&authtokenFile, "authtokenFile", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
-	flag.Var(&titleTmplFiles, "title-template-files", "File(s) containing a template to generate issue titles.")
+	flag.Var(&titleTmplFile, "title-template-file", "File containing a template to generate issue titles.")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), usage)
 		flag.PrintDefaults()
@@ -129,7 +129,7 @@ func main() {
 	promSrv := prometheusx.MustServeMetrics()
 	defer promSrv.Close()
 
-	receiver, err := alerts.NewReceiver(client, *githubRepo, *enableAutoClose, extraLabels, titleTmplFiles)
+	receiver, err := alerts.NewReceiver(client, *githubRepo, *enableAutoClose, extraLabels, string(titleTmplFile))
 	if err != nil {
 		fmt.Print(err)
 		osExit(1)

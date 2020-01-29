@@ -22,7 +22,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
@@ -254,24 +253,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				return
 			}
 
-			// Create template files.
-			var titleTmplFiles []string
-			if tt.titleTmpl != "" {
-				file, err := ioutil.TempFile("", "github-receiver")
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer os.Remove(file.Name())
-				if _, err := fmt.Fprint(file, tt.titleTmpl); err != nil {
-					t.Fatal(err)
-				}
-				if err := file.Close(); err != nil {
-					t.Fatal(err)
-				}
-				titleTmplFiles = append(titleTmplFiles, file.Name())
-			}
-
-			rh, err := NewReceiver(tt.fakeClient, "default", true, nil, titleTmplFiles)
+			rh, err := NewReceiver(tt.fakeClient, "default", true, nil, tt.titleTmpl)
 			if tt.expectReceiverErr {
 				if err == nil {
 					t.Fatal()

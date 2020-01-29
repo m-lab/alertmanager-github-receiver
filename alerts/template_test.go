@@ -18,9 +18,6 @@ package alerts
 import (
 	"fmt"
 	"html/template"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -71,18 +68,7 @@ func TestFormatTitleSimple(t *testing.T) {
 	for testNum, tc := range tests {
 		testName := fmt.Sprintf("tc=%d", testNum)
 		t.Run(testName, func(t *testing.T) {
-			dir, err := ioutil.TempDir("", "github-receiver")
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer os.RemoveAll(dir)
-
-			tmplName := filepath.Join(dir, "test.tmpl")
-			if err := ioutil.WriteFile(tmplName, []byte(tc.tmplTxt), os.ModePerm); err != nil {
-				t.Fatal(err)
-			}
-
-			rh, err := NewReceiver(&fakeClient{}, "default", false, nil, []string{tmplName})
+			rh, err := NewReceiver(&fakeClient{}, "default", false, nil, tc.tmplTxt)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -105,38 +91,5 @@ func TestFormatTitleSimple(t *testing.T) {
 				t.Error(title)
 			}
 		})
-	}
-}
-
-func TestFormatTitleMultiFile(t *testing.T) {
-	dir, err := ioutil.TempDir("", "github-receiver")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-	aName := filepath.Join(dir, "a.tmpl")
-	bName := filepath.Join(dir, "b.tmpl")
-	if err := ioutil.WriteFile(aName, []byte(`{{ template "b" . }}`), os.ModePerm); err != nil {
-		t.Fatal(err)
-	}
-	if err := ioutil.WriteFile(bName, []byte(`{{ define "b" }}b is {{ .Status }}{{ end }}`), os.ModePerm); err != nil {
-		t.Fatal(err)
-	}
-
-	rh, err := NewReceiver(&fakeClient{}, "default", false, nil, []string{aName, bName})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	msg := webhook.Message{
-		Data: &amtmpl.Data{Status: "firing"},
-	}
-	title, err := rh.formatTitle(&msg)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if title != "b is firing" {
-		t.Error(title)
 	}
 }

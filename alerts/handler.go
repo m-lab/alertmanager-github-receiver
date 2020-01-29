@@ -77,7 +77,7 @@ type ReceiverHandler struct {
 }
 
 // NewReceiver creates a new ReceiverHandler.
-func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, extraLabels []string, titleTmplFiles []string) (*ReceiverHandler, error) {
+func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, extraLabels []string, titleTmplStr string) (*ReceiverHandler, error) {
 	rh := ReceiverHandler{
 		Client:      client,
 		DefaultRepo: githubRepo,
@@ -85,14 +85,13 @@ func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, extra
 		ExtraLabels: extraLabels,
 	}
 
+	if titleTmplStr == "" {
+		titleTmplStr = DefaultTitleTmpl
+	}
 	var err error
-	if titleTmplFiles == nil || len(titleTmplFiles) == 0 {
-		rh.titleTmpl = template.Must(template.New("title").Parse(DefaultTitleTmpl))
-	} else {
-		rh.titleTmpl, err = template.ParseFiles(titleTmplFiles...)
-		if err != nil {
-			return nil, fmt.Errorf("parsing template files %v: %s", titleTmplFiles, err)
-		}
+	rh.titleTmpl, err = template.New("title").Parse(titleTmplStr)
+	if err != nil {
+		return nil, err
 	}
 
 	return &rh, nil
