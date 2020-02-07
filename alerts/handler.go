@@ -85,9 +85,6 @@ func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, extra
 		ExtraLabels: extraLabels,
 	}
 
-	if titleTmplStr == "" {
-		titleTmplStr = DefaultTitleTmpl
-	}
 	var err error
 	rh.titleTmpl, err = template.New("title").Parse(titleTmplStr)
 	if err != nil {

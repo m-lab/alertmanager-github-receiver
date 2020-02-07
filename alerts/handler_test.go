@@ -253,7 +253,11 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				return
 			}
 
-			rh, err := NewReceiver(tt.fakeClient, "default", true, nil, tt.titleTmpl)
+			titleTmpl := tt.titleTmpl
+			if titleTmpl == "" {
+				titleTmpl = DefaultTitleTmpl
+			}
+			rh, err := NewReceiver(tt.fakeClient, "default", true, nil, titleTmpl)
 			if tt.expectReceiverErr {
 				if err == nil {
 					t.Fatal()
