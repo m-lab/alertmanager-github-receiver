@@ -17,11 +17,13 @@ func TestMetrics(t *testing.T) {
 
 func Test_main(t *testing.T) {
 	tests := []struct {
-		name      string
-		authfile  string
-		authtoken string
-		repo      string
-		inmemory  bool
+		name         string
+		authfile     string
+		authtoken    string
+		repo         string
+		titleTmpl    string
+		inmemory     bool
+		expectStatus int
 	}{
 		{
 			name:      "okay-default",
@@ -36,12 +38,24 @@ func Test_main(t *testing.T) {
 			inmemory: true,
 		},
 		{
-			name: "missing-flags-usage",
+			name:         "missing-flags-usage",
+			expectStatus: 1,
+		},
+		{
+			name:         "bad-title-tmpl",
+			repo:         "fake-repo",
+			authtoken:    "token",
+			titleTmpl:    "{{ x }}",
+			expectStatus: 1,
 		},
 	}
 	flag.CommandLine.SetOutput(ioutil.Discard)
-	osExit = func(int) {}
 	for _, tt := range tests {
+		osExit = func(status int) {
+			if status != tt.expectStatus {
+				t.Error(status)
+			}
+		}
 		*authtoken = tt.authtoken
 		authtokenFile = []byte(tt.authfile)
 		*githubOrg = "fake-org"
@@ -50,6 +64,12 @@ func Test_main(t *testing.T) {
 		// Guarantee no port conflicts between tests of main.
 		*prometheusx.ListenAddress = ":0"
 		*receiverAddr = ":0"
+
+		// Create template file.
+		if tt.titleTmpl != "" {
+			titleTmplFile = ([]byte)(tt.titleTmpl)
+		}
+
 		t.Run(tt.name, func(t *testing.T) {
 			wg := sync.WaitGroup{}
 			wg.Add(1)

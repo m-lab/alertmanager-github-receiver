@@ -108,15 +108,17 @@ func (e *errorReader) Read(p []byte) (n int, err error) {
 
 func TestReceiverHandler_ServeHTTP(t *testing.T) {
 	tests := []struct {
-		name           string
-		method         string
-		msgAlert       string
-		msgAlertStatus string
-		msgRepo        string
-		fakeClient     *fakeClient
-		httpStatus     int
-		wantMessageErr bool
-		wantReadErr    bool
+		name              string
+		method            string
+		msgAlert          string
+		msgAlertStatus    string
+		msgRepo           string
+		fakeClient        *fakeClient
+		titleTmpl         string
+		httpStatus        int
+		expectReceiverErr bool
+		wantMessageErr    bool
+		wantReadErr       bool
 	}{
 		{
 			name:           "successful-close",
@@ -158,6 +160,46 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			httpStatus: http.StatusOK,
+		},
+		{
+			name:           "successful-title-template",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient: &fakeClient{
+				listIssues: []*github.Issue{
+					createIssue("DiskRunningFull", "body1", ""),
+				},
+			},
+			titleTmpl:  `{{ (index .Data.Alerts 0).Labels.alertname }}`,
+			httpStatus: http.StatusOK,
+		},
+		{
+			name:           "failure-title-template-bad-index",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient: &fakeClient{
+				listIssues: []*github.Issue{
+					createIssue("DiskRunningFull", "body1", ""),
+				},
+			},
+			titleTmpl:  `{{ (index .Data.Alerts 1).Status }}`,
+			httpStatus: http.StatusInternalServerError,
+		},
+		{
+			name:           "failure-title-template-bad-syntax",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient: &fakeClient{
+				listIssues: []*github.Issue{
+					createIssue("DiskRunningFull", "body1", ""),
+				},
+			},
+			titleTmpl:         `{{ x }}`,
+			expectReceiverErr: true,
+			httpStatus:        http.StatusInternalServerError,
 		},
 		{
 			name:           "failure-unmarshal-error",
@@ -211,11 +253,18 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				return
 			}
 
-			rh := &ReceiverHandler{
-				Client:      tt.fakeClient,
-				AutoClose:   true,
-				DefaultRepo: "default",
-				ExtraLabels: nil,
+			titleTmpl := tt.titleTmpl
+			if titleTmpl == "" {
+				titleTmpl = DefaultTitleTmpl
+			}
+			rh, err := NewReceiver(tt.fakeClient, "default", true, nil, titleTmpl)
+			if tt.expectReceiverErr {
+				if err == nil {
+					t.Fatal()
+				}
+				return
+			} else if err != nil {
+				t.Fatal(err)
 			}
 			rh.ServeHTTP(rw, req)
 			resp := rw.Result()

@@ -17,9 +17,11 @@ package alerts
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"text/template"
 
 	"github.com/google/go-github/github"
 	"github.com/prometheus/alertmanager/notify/webhook"
@@ -69,6 +71,27 @@ type ReceiverHandler struct {
 
 	// ExtraLabels values will be added to new issues as additional labels.
 	ExtraLabels []string
+
+	// titleTmpl is used to format the title of the new issue.
+	titleTmpl *template.Template
+}
+
+// NewReceiver creates a new ReceiverHandler.
+func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, extraLabels []string, titleTmplStr string) (*ReceiverHandler, error) {
+	rh := ReceiverHandler{
+		Client:      client,
+		DefaultRepo: githubRepo,
+		AutoClose:   autoClose,
+		ExtraLabels: extraLabels,
+	}
+
+	var err error
+	rh.titleTmpl, err = template.New("title").Parse(titleTmplStr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &rh, nil
 }
 
 // ServeHTTP receives and processes alertmanager notifications. If the alert
@@ -114,7 +137,6 @@ func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 
 // processAlert processes an alertmanager webhook message.
 func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
-	// TODO(dev): replace list-and-search with search using labels.
 	// TODO(dev): Cache list results.
 	// List known issues from github.
 	issues, err := rh.Client.ListOpenIssues()
@@ -123,7 +145,10 @@ func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
 	}
 
 	// Search for an issue that matches the notification message from AM.
-	msgTitle := formatTitle(msg)
+	msgTitle, err := rh.formatTitle(msg)
+	if err != nil {
+		return fmt.Errorf("format title for %q: %s", msg.GroupKey, err)
+	}
 	var foundIssue *github.Issue
 	for _, issue := range issues {
 		if msgTitle == *issue.Title {

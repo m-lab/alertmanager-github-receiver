@@ -47,6 +47,7 @@ var (
 	receiverAddr    = flag.String("webhook.listen-address", ":9393", "Listen on address for new alertmanager webhook messages.")
 	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
 	extraLabels     = flagx.StringArray{}
+	titleTmplFile   = flagx.FileBytes(alerts.DefaultTitleTmpl)
 )
 
 // Metrics.
@@ -72,8 +73,8 @@ NAME
   corresponding issues on Github.
 
 DESCRIPTION
-  The github_receiver authenticates all actions using the given --authtoken
-  or the value read from --authtokenFile. As well, the given --org and --repo
+  The github_receiver authenticates all actions using the given -authtoken
+  or the value read from -authtokenFile. As well, the given -org and -repo
   names are used as the default destination for new issues.
 
 EXAMPLE
@@ -84,21 +85,16 @@ EXAMPLE
 func init() {
 	flag.Var(&extraLabels, "label", "Extra labels to add to issues at creation time.")
 	flag.Var(&authtokenFile, "authtokenFile", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
+	flag.Var(&titleTmplFile, "title-template-file", "File containing a template to generate issue titles.")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), usage)
 		flag.PrintDefaults()
 	}
 }
 
-func mustServeWebhookReceiver(client alerts.ReceiverClient) *http.Server {
-	receiver := &alerts.ReceiverHandler{
-		Client:      client,
-		DefaultRepo: *githubRepo,
-		AutoClose:   *enableAutoClose,
-		ExtraLabels: extraLabels,
-	}
+func mustServeWebhookReceiver(receiver *alerts.ReceiverHandler) *http.Server {
 	mux := http.NewServeMux()
-	mux.Handle("/", &issues.ListHandler{ListClient: client})
+	mux.Handle("/", &issues.ListHandler{ListClient: receiver.Client})
 	mux.Handle("/v1/receiver", promhttp.InstrumentHandlerDuration(receiverDuration, receiver))
 	srv := &http.Server{
 		Addr:    *receiverAddr,
@@ -133,7 +129,13 @@ func main() {
 	promSrv := prometheusx.MustServeMetrics()
 	defer promSrv.Close()
 
-	srv := mustServeWebhookReceiver(client)
+	receiver, err := alerts.NewReceiver(client, *githubRepo, *enableAutoClose, extraLabels, string(titleTmplFile))
+	if err != nil {
+		fmt.Print(err)
+		osExit(1)
+		return
+	}
+	srv := mustServeWebhookReceiver(receiver)
 	defer srv.Close()
 	<-ctx.Done()
 }
