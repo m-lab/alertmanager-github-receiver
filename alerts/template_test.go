@@ -68,7 +68,7 @@ func TestFormatTitleSimple(t *testing.T) {
 	for testNum, tc := range tests {
 		testName := fmt.Sprintf("tc=%d", testNum)
 		t.Run(testName, func(t *testing.T) {
-			rh, err := NewReceiver(&fakeClient{}, "default", false, nil, tc.tmplTxt)
+			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, tc.tmplTxt)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -130,6 +130,30 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 	return issue, nil
 }
 
+// LabelIssue adds or removes a label from an issue. This call is idempotent;
+// it returns errors if the label doesn't exist or there's a network error, but
+// no error is returned if trying to add a label that's already present or
+// remove one that's absent.
+func (c *Client) LabelIssue(issue *github.Issue, label string, add bool) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	org, repo, err := getOrgAndRepoFromIssue(issue)
+	if err != nil {
+		return err
+	}
+
+	var resp *github.Response
+	if add {
+		_, resp, err = c.GithubClient.Issues.AddLabelsToIssue(ctx, org, repo, *issue.Number, []string{label})
+	} else {
+		resp, err = c.GithubClient.Issues.RemoveLabelForIssue(ctx, org, repo, *issue.Number, label)
+	}
+	updateRateMetrics("issues", resp, err)
+
+	return err
+}
+
 // ListOpenIssues returns open issues created by past alerts within the
 // client organization. Because ListOpenIssues uses the Github Search API,
 // the *github.Issue instances returned will contain partial information.

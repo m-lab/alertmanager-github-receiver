@@ -27,15 +27,17 @@ func TestMemoryClient(t *testing.T) {
 		name    string
 		title   string
 		body    string
+		label   string
 		wantErr bool
 	}{
 		{
 			name:  "success",
 			title: "alert name",
 			body:  "foobar",
+			label: "label",
 		},
 	}
-	for _, tt := range tests {
+	for testNum, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewClient()
 			got, err := c.CreateIssue("fake-repo", tt.title, tt.body, nil)
@@ -50,20 +52,29 @@ func TestMemoryClient(t *testing.T) {
 			if !reflect.DeepEqual(got, wantIssue) {
 				t.Errorf("Client.CreateIssue() = %v, want %v", got, wantIssue)
 			}
-			list, err := c.ListOpenIssues()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Client.ListOpenIssues() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+
 			wantList := []*github.Issue{
-				&github.Issue{
+				{
 					Title: &tt.title,
 					Body:  &tt.body,
 				},
 			}
-			if !reflect.DeepEqual(list, wantList) {
-				t.Errorf("Client.ListOpenIssues() = %v, want %v", list, wantList)
+			listAndCheck(t, c, tt.wantErr, wantList)
+
+			err = c.LabelIssue(got, tt.label, true)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("test %d, error %v", testNum, err)
 			}
+			wantList[0].Labels = append(wantList[0].Labels, github.Label{Name: &tt.label})
+			listAndCheck(t, c, tt.wantErr, wantList)
+
+			err = c.LabelIssue(got, tt.label, false)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("test %d, error %v", testNum, err)
+			}
+			wantList[0].Labels = []github.Label{}
+			listAndCheck(t, c, tt.wantErr, wantList)
+
 			closed, err := c.CloseIssue(got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.CloseIssue() error = %v, wantErr %v", err, tt.wantErr)
@@ -72,6 +83,7 @@ func TestMemoryClient(t *testing.T) {
 			if !reflect.DeepEqual(closed, got) {
 				t.Errorf("Client.CloseIssue() = %v, want %v", closed, got)
 			}
+
 			_, err = c.CloseIssue(&github.Issue{
 				Title: github.String("cannot-close-missing-issue"),
 			})
@@ -79,5 +91,16 @@ func TestMemoryClient(t *testing.T) {
 				t.Errorf("Client.CloseIssue(), got nil, want error")
 			}
 		})
+	}
+}
+
+func listAndCheck(t *testing.T, c *Client, wantErr bool, wantList []*github.Issue) {
+	list, err := c.ListOpenIssues()
+	if (err != nil) != wantErr {
+		t.Errorf("Client.ListOpenIssues() error = %v, wantErr %v", err, wantErr)
+		return
+	}
+	if !reflect.DeepEqual(list, wantList) {
+		t.Errorf("Client.ListOpenIssues() = %v, want %v", list, wantList)
 	}
 }

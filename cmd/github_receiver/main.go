@@ -43,6 +43,7 @@ var (
 	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
 	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
+	labelOnResolved = flag.String("label-on-resolved", "", "Once an alert stops firing, apply this label.")
 	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
 	receiverAddr    = flag.String("webhook.listen-address", ":9393", "Listen on address for new alertmanager webhook messages.")
 	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
@@ -129,7 +130,7 @@ func main() {
 	promSrv := prometheusx.MustServeMetrics()
 	defer promSrv.Close()
 
-	receiver, err := alerts.NewReceiver(client, *githubRepo, *enableAutoClose, extraLabels, string(titleTmplFile))
+	receiver, err := alerts.NewReceiver(client, *githubRepo, *enableAutoClose, *labelOnResolved, extraLabels, string(titleTmplFile))
 	if err != nil {
 		fmt.Print(err)
 		osExit(1)

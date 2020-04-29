@@ -47,6 +47,11 @@ func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
 	return f.listIssues, nil
 }
 
+func (f *fakeClient) LabelIssue(issue *github.Issue, label string, add bool) error {
+	fmt.Println("label issue")
+	return nil
+}
+
 func (f *fakeClient) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
 	fmt.Println("create issue")
 	f.createdIssue = createIssue(title, body, repo)
@@ -257,7 +262,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			if titleTmpl == "" {
 				titleTmpl = DefaultTitleTmpl
 			}
-			rh, err := NewReceiver(tt.fakeClient, "default", true, nil, titleTmpl)
+			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, titleTmpl)
 			if tt.expectReceiverErr {
 				if err == nil {
 					t.Fatal()
