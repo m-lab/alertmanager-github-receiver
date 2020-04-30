@@ -220,6 +220,87 @@ func TestClient_ListOpenIssues(t *testing.T) {
 	}
 }
 
+func TestClient_LabelIssue(t *testing.T) {
+	goodIssue := &github.Issue{
+		Number:        github.Int(1),
+		RepositoryURL: github.String("https://api.github.com/repos/fake-org/fake-repo"),
+	}
+	badIssue := &github.Issue{
+		Number:        github.Int(1),
+		RepositoryURL: nil,
+	}
+
+	tests := []struct {
+		name        string
+		issue       *github.Issue
+		label       string
+		addLabel    bool
+		httpError   string
+		errorSubstr string
+	}{
+		{
+			name:     "success-label",
+			issue:    goodIssue,
+			label:    "my label",
+			addLabel: true,
+		},
+		{
+			name:     "success-unlabel",
+			issue:    goodIssue,
+			label:    "my label",
+			addLabel: false,
+		},
+		{
+			name:  "success-noop-label",
+			issue: goodIssue,
+		},
+		{
+			name:        "failure-label-nonexistent",
+			issue:       goodIssue,
+			label:       "my label",
+			addLabel:    true,
+			httpError:   "no such label",
+			errorSubstr: "no such label",
+		},
+		{
+			name:        "failure-bad-issue",
+			issue:       badIssue,
+			label:       "my label",
+			errorSubstr: "invalid RepositoryURL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := issues.NewClient("fake-org", "fake-auth", "fake-label")
+			c.GithubClient.BaseURL = setupServer()
+			defer teardownServer()
+
+			testMux.HandleFunc("/repos/fake-org/fake-repo/issues/1/labels/", func(w http.ResponseWriter, r *http.Request) {
+				if tt.httpError != "" {
+					w.WriteHeader(http.StatusBadRequest)
+					fmt.Fprintf(w, `{"message": "fake error %s"}`, tt.httpError)
+					return
+				}
+				// r.ParseForm()
+				response := fmt.Sprintf(`[{}]`)
+				w.Write([]byte(response))
+			})
+
+			err := c.LabelIssue(tt.issue, tt.label, tt.addLabel)
+			if err != nil {
+				if tt.errorSubstr == "" {
+					t.Error(err)
+				} else if !strings.Contains(err.Error(), tt.errorSubstr) {
+					t.Errorf("error %q but want %q", err.Error(), tt.errorSubstr)
+				}
+			} else if tt.errorSubstr != "" {
+				t.Errorf("no error but want %q", tt.errorSubstr)
+			}
+		})
+	}
+}
+
 func TestClient_CloseIssue(t *testing.T) {
 	tests := []struct {
 		name    string
