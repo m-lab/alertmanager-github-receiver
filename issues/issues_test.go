@@ -200,7 +200,6 @@ func TestClient_ListOpenIssues(t *testing.T) {
 					fmt.Fprint(w, `error`)
 					return
 				}
-				// r.ParseForm()
 				if count == 0 {
 					w.Header().Set("Link", `<https://api.github.com/resource?page=2>; rel="next"`)
 				}
@@ -282,9 +281,7 @@ func TestClient_LabelIssue(t *testing.T) {
 					fmt.Fprintf(w, `{"message": "fake error %s"}`, tt.httpError)
 					return
 				}
-				// r.ParseForm()
-				response := fmt.Sprintf(`[{}]`)
-				w.Write([]byte(response))
+				w.Write([]byte(`[{}]`))
 			})
 
 			err := c.LabelIssue(tt.issue, tt.label, tt.addLabel)
