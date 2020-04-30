@@ -20,6 +20,7 @@ package issues
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -131,10 +132,18 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 }
 
 // LabelIssue adds or removes a label from an issue. This call is idempotent;
-// it returns errors if the label doesn't exist or there's a network error, but
+// it returns errors if there's a network error, but
 // no error is returned if trying to add a label that's already present or
 // remove one that's absent.
 func (c *Client) LabelIssue(issue *github.Issue, label string, add bool) error {
+	// The GitHub API is weird about which actions are idempotent:
+	// - Adding a label that exists in the project is idempotent.
+	// - Adding a label that doesn't exist will silently create it.
+	// - Deleting a label that's associated with an issue returns success.
+	// - Deleting a label that's defined, but not associated with the issue, returns 404.
+	// - Deleting a label that's not defined for the repo returns 404 with identical JSON text.
+	// - Deleting a label from an issue that doesn't exist returns 404 with JSON message "Not Found".
+	// We choose to ignore errors on delete if the status code is 404.
 	if label == "" {
 		return nil
 	}
@@ -152,6 +161,9 @@ func (c *Client) LabelIssue(issue *github.Issue, label string, add bool) error {
 		_, resp, err = c.GithubClient.Issues.AddLabelsToIssue(ctx, org, repo, *issue.Number, []string{label})
 	} else {
 		resp, err = c.GithubClient.Issues.RemoveLabelForIssue(ctx, org, repo, *issue.Number, label)
+		if resp.StatusCode == http.StatusNotFound {
+			err = nil
+		}
 	}
 	updateRateMetrics("issues", resp, err)
 

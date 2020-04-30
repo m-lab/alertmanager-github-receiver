@@ -234,7 +234,7 @@ func TestClient_LabelIssue(t *testing.T) {
 		issue       *github.Issue
 		label       string
 		addLabel    bool
-		httpError   string
+		httpCode    int
 		errorSubstr string
 	}{
 		{
@@ -250,16 +250,23 @@ func TestClient_LabelIssue(t *testing.T) {
 			addLabel: false,
 		},
 		{
+			name:     "success-unlabel-nonexistent",
+			issue:    goodIssue,
+			label:    "my label",
+			addLabel: false,
+			httpCode: http.StatusNotFound,
+		},
+		{
 			name:  "success-noop-label",
 			issue: goodIssue,
 		},
 		{
-			name:        "failure-label-nonexistent",
+			name:        "failure-label-bad",
 			issue:       goodIssue,
 			label:       "my label",
 			addLabel:    true,
-			httpError:   "no such label",
-			errorSubstr: "no such label",
+			httpCode:    http.StatusBadRequest,
+			errorSubstr: "fake error",
 		},
 		{
 			name:        "failure-bad-issue",
@@ -276,9 +283,9 @@ func TestClient_LabelIssue(t *testing.T) {
 			defer teardownServer()
 
 			testMux.HandleFunc("/repos/fake-org/fake-repo/issues/1/labels/", func(w http.ResponseWriter, r *http.Request) {
-				if tt.httpError != "" {
-					w.WriteHeader(http.StatusBadRequest)
-					fmt.Fprintf(w, `{"message": "fake error %s"}`, tt.httpError)
+				if tt.httpCode != 0 {
+					w.WriteHeader(tt.httpCode)
+					fmt.Fprint(w, `{"message": "fake error"}`)
 					return
 				}
 				w.Write([]byte(`[{}]`))
