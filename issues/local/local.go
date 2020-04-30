@@ -46,6 +46,10 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 
 // LabelIssue idempotently adds or removes a label in the in memory store.
 func (c *Client) LabelIssue(issue *github.Issue, label string, add bool) error {
+	if label == "" {
+		return nil
+	}
+
 	memIssue, ok := c.issues[issue.GetTitle()]
 	if !ok {
 		return fmt.Errorf("Unknown issue: %s", issue.GetTitle())

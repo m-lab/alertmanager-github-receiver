@@ -189,11 +189,9 @@ func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
 		// alert. Prometheus evaluates rules every `evaluation_interval`.
 		// And, alertmanager preserves an alert until `resolve_timeout`. So
 		// expect (resolve_timeout / evaluation_interval) messages.
-		if rh.ResolvedLabel != "" {
-			err := rh.Client.LabelIssue(foundIssue, rh.ResolvedLabel, true)
-			if err != nil {
-				return err
-			}
+		err := rh.Client.LabelIssue(foundIssue, rh.ResolvedLabel, true)
+		if err != nil {
+			return err
 		}
 		if rh.AutoClose {
 			_, err := rh.Client.CloseIssue(foundIssue)

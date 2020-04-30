@@ -135,6 +135,10 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 // no error is returned if trying to add a label that's already present or
 // remove one that's absent.
 func (c *Client) LabelIssue(issue *github.Issue, label string, add bool) error {
+	if label == "" {
+		return nil
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
