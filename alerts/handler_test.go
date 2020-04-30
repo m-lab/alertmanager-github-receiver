@@ -17,6 +17,7 @@ package alerts
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -37,6 +38,7 @@ type fakeClient struct {
 	createdIssue *github.Issue
 	closedIssue  *github.Issue
 	listError    error
+	labelError   error
 }
 
 func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
@@ -45,6 +47,14 @@ func (f *fakeClient) ListOpenIssues() ([]*github.Issue, error) {
 		return nil, f.listError
 	}
 	return f.listIssues, nil
+}
+
+func (f *fakeClient) LabelIssue(issue *github.Issue, label string, add bool) error {
+	fmt.Println("label issue")
+	if f.labelError != nil {
+		return f.labelError
+	}
+	return nil
 }
 
 func (f *fakeClient) CreateIssue(repo, title, body string, extra []string) (*github.Issue, error) {
@@ -133,6 +143,14 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			httpStatus: http.StatusOK,
 		},
 		{
+			name:           "successful-resolved-after-closed",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "resolved",
+			fakeClient:     &fakeClient{},
+			httpStatus:     http.StatusOK,
+		},
+		{
 			name:           "successful-create",
 			method:         http.MethodPost,
 			msgAlert:       "DiskRunningFull",
@@ -173,6 +191,19 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			},
 			titleTmpl:  `{{ (index .Data.Alerts 0).Labels.alertname }}`,
 			httpStatus: http.StatusOK,
+		},
+		{
+			name:           "failure-resolved-label",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "resolved",
+			fakeClient: &fakeClient{
+				listIssues: []*github.Issue{
+					createIssue("DiskRunningFull", "body", ""),
+				},
+				labelError: errors.New("No such label"),
+			},
+			httpStatus: http.StatusInternalServerError,
 		},
 		{
 			name:           "failure-title-template-bad-index",
@@ -257,7 +288,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			if titleTmpl == "" {
 				titleTmpl = DefaultTitleTmpl
 			}
-			rh, err := NewReceiver(tt.fakeClient, "default", true, nil, titleTmpl)
+			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, titleTmpl)
 			if tt.expectReceiverErr {
 				if err == nil {
 					t.Fatal()

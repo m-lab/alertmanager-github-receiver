@@ -52,6 +52,7 @@ var (
 type ReceiverClient interface {
 	CloseIssue(issue *github.Issue) (*github.Issue, error)
 	CreateIssue(repo, title, body string, extra []string) (*github.Issue, error)
+	LabelIssue(issue *github.Issue, label string, add bool) error
 	ListOpenIssues() ([]*github.Issue, error)
 }
 
@@ -65,6 +66,10 @@ type ReceiverHandler struct {
 	// closed automatically.
 	AutoClose bool
 
+	// ResolvedLabel is applied to issues when their corresponding alerts are
+	// resolved.
+	ResolvedLabel string
+
 	// DefaultRepo is the repository where all alerts without a "repo" label will
 	// be created. Repo must exist.
 	DefaultRepo string
@@ -77,12 +82,13 @@ type ReceiverHandler struct {
 }
 
 // NewReceiver creates a new ReceiverHandler.
-func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, extraLabels []string, titleTmplStr string) (*ReceiverHandler, error) {
+func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, resolvedLabel string, extraLabels []string, titleTmplStr string) (*ReceiverHandler, error) {
 	rh := ReceiverHandler{
-		Client:      client,
-		DefaultRepo: githubRepo,
-		AutoClose:   autoClose,
-		ExtraLabels: extraLabels,
+		Client:        client,
+		DefaultRepo:   githubRepo,
+		AutoClose:     autoClose,
+		ResolvedLabel: resolvedLabel,
+		ExtraLabels:   extraLabels,
 	}
 
 	var err error
@@ -163,24 +169,34 @@ func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
 
 	// The message is currently firing and we did not find a matching
 	// issue from github, so create a new issue.
-	if msg.Data.Status == "firing" && foundIssue == nil {
-		msgBody := formatIssueBody(msg)
-		_, err := rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, rh.ExtraLabels)
-		if err == nil {
-			createdIssues.WithLabelValues(alertName).Inc()
+	if msg.Data.Status == "firing" {
+		if foundIssue == nil {
+			msgBody := formatIssueBody(msg)
+			_, err = rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, rh.ExtraLabels)
+			if err == nil {
+				createdIssues.WithLabelValues(alertName).Inc()
+			}
+		} else {
+			err = rh.Client.LabelIssue(foundIssue, rh.ResolvedLabel, false)
 		}
 		return err
 	}
 
 	// The message is resolved and we found a matching open issue from github.
 	// If AutoClose is true, then close the issue.
-	if msg.Data.Status == "resolved" && foundIssue != nil && rh.AutoClose {
+	if msg.Data.Status == "resolved" && foundIssue != nil {
 		// NOTE: there can be multiple "resolved" messages for the same
 		// alert. Prometheus evaluates rules every `evaluation_interval`.
 		// And, alertmanager preserves an alert until `resolve_timeout`. So
 		// expect (resolve_timeout / evaluation_interval) messages.
-		_, err := rh.Client.CloseIssue(foundIssue)
-		return err
+		err := rh.Client.LabelIssue(foundIssue, rh.ResolvedLabel, true)
+		if err != nil {
+			return err
+		}
+		if rh.AutoClose {
+			_, err := rh.Client.CloseIssue(foundIssue)
+			return err
+		}
 	}
 
 	// log.Printf("Unsupported WebhookMessage.Data.Status: %s", msg.Data.Status)

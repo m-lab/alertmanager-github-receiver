@@ -13,7 +13,7 @@
 // limitations under the License.
 //////////////////////////////////////////////////////////////////////////////
 
-// Package memory provides in memory operations on GitHub issues.
+// Package local provides in memory operations on GitHub issues.
 package local
 
 import (
@@ -42,6 +42,33 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 		Body:  &body,
 	}
 	return c.issues[title], nil
+}
+
+// LabelIssue idempotently adds or removes a label in the in memory store.
+func (c *Client) LabelIssue(issue *github.Issue, label string, add bool) error {
+	if label == "" {
+		return nil
+	}
+
+	memIssue, ok := c.issues[issue.GetTitle()]
+	if !ok {
+		return fmt.Errorf("Unknown issue: %s", issue.GetTitle())
+	}
+	found := false
+	for i, issueLabel := range memIssue.Labels {
+		if *issueLabel.Name == label {
+			found = true
+			if !add {
+				memIssue.Labels = append(memIssue.Labels[:i], memIssue.Labels[i+1:]...)
+			}
+			break
+		}
+	}
+	if add && !found {
+		newLabel := github.Label{Name: &label}
+		memIssue.Labels = append(memIssue.Labels, newLabel)
+	}
+	return nil
 }
 
 // ListOpenIssues returns all issues in the memory store.

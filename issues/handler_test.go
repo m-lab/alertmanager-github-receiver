@@ -47,7 +47,7 @@ func TestListHandler_ServeHTTP(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			listClient: &fakeClient{
 				issues: []*github.Issue{
-					&github.Issue{
+					{
 						HTMLURL: github.String("http://foo.bar"),
 						Title:   github.String("issue1 title"),
 					},
@@ -77,7 +77,7 @@ func TestListHandler_ServeHTTP(t *testing.T) {
 			expectedStatus: http.StatusInternalServerError,
 			listClient: &fakeClient{
 				issues: []*github.Issue{
-					&github.Issue{
+					{
 						HTMLURL: github.String("http://foo.bar"),
 						Title:   github.String("issue1 title"),
 					},
