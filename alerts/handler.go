@@ -21,7 +21,11 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"text/template"
+
+	amTemplate "github.com/prometheus/alertmanager/template"
 
 	"github.com/google/go-github/github"
 	"github.com/prometheus/alertmanager/notify/webhook"
@@ -50,6 +54,7 @@ var (
 
 // ReceiverClient defines all issue operations needed by the ReceiverHandler.
 type ReceiverClient interface {
+	AssignIssueToProject(issue *github.Issue, columnId int64) (*github.ProjectCard, error)
 	CloseIssue(issue *github.Issue) (*github.Issue, error)
 	CreateIssue(repo, title, body string, extra []string) (*github.Issue, error)
 	LabelIssue(issue *github.Issue, label string, add bool) error
@@ -79,6 +84,13 @@ type ReceiverHandler struct {
 
 	// titleTmpl is used to format the title of the new issue.
 	titleTmpl *template.Template
+}
+
+// GithubInfo contains information related to assigning new/existing issues to
+// projects, and ensuring they have the appropriate labels.
+type GithubInfo struct {
+	AdditionalLabels []string
+	ProjectColumnId  int64
 }
 
 // NewReceiver creates a new ReceiverHandler.
@@ -156,6 +168,7 @@ func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
 		return fmt.Errorf("format title for %q: %s", msg.GroupKey, err)
 	}
 	var foundIssue *github.Issue
+
 	for _, issue := range issues {
 		if msgTitle == *issue.Title {
 			log.Printf("Found matching issue: %s\n", msgTitle)
@@ -167,16 +180,32 @@ func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
 	var alertName = msg.Data.GroupLabels["alertname"]
 	receivedAlerts.WithLabelValues(alertName, msg.Data.Status).Inc()
 
-	// The message is currently firing and we did not find a matching
-	// issue from github, so create a new issue.
+	// parse the additional github information - will manage any parsing error returned after
+	// the issue is created - as we need the list of string labels as part of the creation
+	additionalGithubInfo := parseAdditionalGithubInfo(&msg.Data.Alerts[0].Annotations)
+
+	// extract labels from the alert annotations and add them to the pre-configured labels
+	allLabels := append(rh.ExtraLabels, additionalGithubInfo.AdditionalLabels...)
+
+	// The message is currently firing and we did not find a matchingissue from github, so create a new issue.
 	if msg.Data.Status == "firing" {
 		if foundIssue == nil {
 			msgBody := formatIssueBody(msg)
-			_, err = rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, rh.ExtraLabels)
+			foundIssue, err = rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, allLabels)
 			if err == nil {
 				createdIssues.WithLabelValues(alertName).Inc()
 			}
+
+			// attempt to assign to a project card, if a valid project column ID was passed
+			// only assign to a project when a new issue is created
+			if additionalGithubInfo.ProjectColumnId != 0 {
+				_, err := rh.Client.AssignIssueToProject(foundIssue, additionalGithubInfo.ProjectColumnId)
+				if err != nil {
+					log.Println(err)
+				}
+			}
 		} else {
+			// remove the resolved label since this refired - the false value triggers the removal
 			err = rh.Client.LabelIssue(foundIssue, rh.ResolvedLabel, false)
 		}
 		return err
@@ -212,4 +241,28 @@ func (rh *ReceiverHandler) getTargetRepo(msg *webhook.Message) string {
 		return repo
 	}
 	return rh.DefaultRepo
+}
+
+// extractLabels transforms a KV pair named "github-labels" from the alert's annotations
+// and returns them as a slice of github.Labels
+func parseAdditionalGithubInfo(annotations *amTemplate.KV) *GithubInfo {
+	var ghProjectInfo GithubInfo
+
+	// grab the labels
+	if lblStr, ok := (*annotations)["github-labels"]; ok {
+		ghProjectInfo.AdditionalLabels = strings.Split(lblStr, ",")
+	}
+
+	// grab the column id for the project card
+	columnIdStr, _ := (*annotations)["github-project-column-id"]
+	columnId, err := strconv.ParseInt(columnIdStr, 10, 64)
+
+	if err != nil {
+		ghProjectInfo.ProjectColumnId = 0
+		log.Printf("Invalid Project Column ID passed via annotations. Issue will not be assigned to a project.")
+	} else {
+		ghProjectInfo.ProjectColumnId = columnId
+	}
+
+	return &ghProjectInfo
 }

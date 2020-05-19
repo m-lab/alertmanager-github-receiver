@@ -238,6 +238,18 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	return closedIssue, nil
 }
 
+// AssignIssueToProject creates a project card for the given projectId and assigns the issue
+// to the created card. If no project is found by that given ID, an error will be returned.
+func (c *Client) AssignIssueToProject(issue *github.Issue, columnId int64) (*github.ProjectCard, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	opts := github.ProjectCardOptions{ContentID: *issue.ID, ContentType: "Issue"}
+	card, _, err := c.GithubClient.Projects.CreateProjectCard(ctx, columnId, &opts)
+
+	return card, err
+}
+
 // getOrgAndRepoFromIssue reads the issue RepositoryURL and extracts the
 // owner and repo names. Issues returned by the Search API contain partial
 // records.

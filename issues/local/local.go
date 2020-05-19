@@ -89,3 +89,10 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	delete(c.issues, issue.GetTitle())
 	return issue, nil
 }
+
+// AssignIssueToProject assigns a github issue to a project, which in turn creates a project card and
+// assigns the issue to it. This local client will not implement this capability.
+func (c *Client) AssignIssueToProject(issue *github.Issue, columnId int64) (*github.ProjectCard, error) {
+	// No-op
+	return nil, nil
+}
