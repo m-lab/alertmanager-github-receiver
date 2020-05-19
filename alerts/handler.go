@@ -243,8 +243,9 @@ func (rh *ReceiverHandler) getTargetRepo(msg *webhook.Message) string {
 	return rh.DefaultRepo
 }
 
-// extractLabels transforms a KV pair named "github-labels" from the alert's annotations
-// and returns them as a slice of github.Labels
+// parseAdditionalGithubInfo parses out two additional annotation keys: "github-labels"
+// and "github-project-column-id" which can be used to add more labels to a new issue,
+// and also assign the new issue to a specific project board
 func parseAdditionalGithubInfo(annotations *amTemplate.KV) *GithubInfo {
 	var ghProjectInfo GithubInfo
 
