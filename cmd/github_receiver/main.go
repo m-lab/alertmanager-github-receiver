@@ -132,6 +132,7 @@ func main() {
 		if err != nil {
 			fmt.Print(err)
 			osExit(1)
+			return
 		}
 	}
 	promSrv := prometheusx.MustServeMetrics()
