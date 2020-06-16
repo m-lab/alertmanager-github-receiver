@@ -42,6 +42,8 @@ var (
 	authtokenFile   = flagx.FileBytes{}
 	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
 	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
+	githubBaseURL   = flag.String("baseURL", "", "The URL of your GitHub Enterprise with API suffix (for example '/api/v3/').")
+	githubUploadURL = flag.String("uploadURL", "", "The upload URL needs to be set if it differs from the Github Enterprise base URL.")
 	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
 	labelOnResolved = flag.String("label-on-resolved", "", "Once an alert stops firing, apply this label.")
 	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
@@ -125,7 +127,12 @@ func main() {
 	if *enableInMemory {
 		client = local.NewClient()
 	} else {
-		client = issues.NewClient(*githubOrg, token, *alertLabel)
+		var err error
+		client, err = issues.NewClient(*githubBaseURL, *githubUploadURL, *githubOrg, token, *alertLabel)
+		if err != nil {
+			fmt.Print(err)
+			osExit(1)
+		}
 	}
 	promSrv := prometheusx.MustServeMetrics()
 	defer promSrv.Close()

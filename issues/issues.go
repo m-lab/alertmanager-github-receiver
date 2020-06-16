@@ -85,17 +85,32 @@ type Client struct {
 
 // NewClient creates an Client authenticated using the Github authToken.
 // Future operations are only performed on the given github "org/repo".
-func NewClient(org, authToken, alertLabel string) *Client {
+// Leave baseURL empty for github.com
+// If uploadURL is empty it will be set as baseURL
+func NewClient(baseURL, uploadURL, org, authToken, alertLabel string) (*Client, error) {
+	var githubClient *github.Client
+	var err error
+
 	ctx := context.Background()
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
 	)
+
+	if baseURL == "" {
+		githubClient = github.NewClient(oauth2.NewClient(ctx, tokenSource))
+	} else {
+		if uploadURL == "" {
+			uploadURL = baseURL
+		}
+		githubClient, err = github.NewEnterpriseClient(baseURL, uploadURL, oauth2.NewClient(ctx, tokenSource))
+	}
+
 	client := &Client{
-		GithubClient: github.NewClient(oauth2.NewClient(ctx, tokenSource)),
+		GithubClient: githubClient,
 		org:          org,
 		alertLabel:   alertLabel,
 	}
-	return client
+	return client, err
 }
 
 // CreateIssue creates a new Github issue. New issues are unassigned. Issues are

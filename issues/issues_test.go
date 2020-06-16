@@ -96,7 +96,9 @@ func TestClient_CreateIssue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := issues.NewClient(
+			c, _ := issues.NewClient(
+				"",
+				"",
 				tt.org,
 				"FAKE-AUTH-TOKEN",
 				tt.alertLabel,
@@ -185,7 +187,9 @@ func TestClient_ListOpenIssues(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := issues.NewClient(
+			c, _ := issues.NewClient(
+				"",
+				"",
 				tt.org,
 				"FAKE-AUTH-TOKEN",
 				tt.alertLabel,
@@ -278,7 +282,7 @@ func TestClient_LabelIssue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := issues.NewClient("fake-org", "fake-auth", "fake-label")
+			c, _ := issues.NewClient("", "", "fake-org", "fake-auth", "fake-label")
 			c.GithubClient.BaseURL = setupServer()
 			defer teardownServer()
 
@@ -355,7 +359,9 @@ func TestClient_CloseIssue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := issues.NewClient(
+			c, _ := issues.NewClient(
+				"",
+				"",
 				tt.org,
 				"FAKE-AUTH-TOKEN",
 				"",
@@ -392,7 +398,7 @@ func TestClient_CloseIssue(t *testing.T) {
 }
 
 func TestClient_rateLimit(t *testing.T) {
-	c := issues.NewClient("fake-org", "FAKE-AUTH-TOKEN", "alert")
+	c, _ := issues.NewClient("", "", "fake-org", "FAKE-AUTH-TOKEN", "alert")
 	c.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
@@ -417,6 +423,21 @@ func TestClient_rateLimit(t *testing.T) {
 	_, err = c.CreateIssue("fake-repo", "fake-title", "fake-body", nil)
 	if err == nil {
 		t.Errorf("Client.CreateIssue() got nil, want rate error")
+		return
+	}
+}
+
+func TestClient_newEnterpriseClient(t *testing.T) {
+	baseURL := "https://github.example.com/"
+	c, _ := issues.NewClient(baseURL, "", "fake-org", "FAKE-AUTH-TOKEN", "alert")
+
+	if c.GithubClient.BaseURL.String() != baseURL {
+		t.Errorf("client baseURL got %q but want %q", c.GithubClient.BaseURL.String(), baseURL)
+		return
+	}
+
+	if c.GithubClient.UploadURL.String() != baseURL {
+		t.Errorf("client uploadURL got %q but want %q", c.GithubClient.UploadURL.String(), baseURL)
 		return
 	}
 }
