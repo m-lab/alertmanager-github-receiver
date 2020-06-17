@@ -126,17 +126,15 @@ func main() {
 	var client alerts.ReceiverClient
 	if *enableInMemory {
 		client = local.NewClient()
+	} else if *githubBaseURL == "" {
+		client = issues.NewClient(*githubOrg, token, *alertLabel)
 	} else {
-		if *githubBaseURL == "" {
-			client = issues.NewClient(*githubOrg, token, *alertLabel)
-		} else {
-			var err error
-			client, err = issues.NewEnterpriseClient(*githubBaseURL, *githubUploadURL, *githubOrg, token, *alertLabel)
-			if err != nil {
-				fmt.Print(err)
-				osExit(1)
-				return
-			}
+		var err error
+		client, err = issues.NewEnterpriseClient(*githubBaseURL, *githubUploadURL, *githubOrg, token, *alertLabel)
+		if err != nil {
+			fmt.Print(err)
+			osExit(1)
+			return
 		}
 	}
 
