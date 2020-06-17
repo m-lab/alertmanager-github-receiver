@@ -64,6 +64,7 @@ func Test_main(t *testing.T) {
 		// Guarantee no port conflicts between tests of main.
 		*prometheusx.ListenAddress = ":0"
 		*receiverAddr = ":0"
+		*verbose = true
 
 		// Create template file.
 		if tt.titleTmpl != "" {

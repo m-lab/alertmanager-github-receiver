@@ -47,6 +47,7 @@ var (
 	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
 	receiverAddr    = flag.String("webhook.listen-address", ":9393", "Listen on address for new alertmanager webhook messages.")
 	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
+	verbose         = flag.Bool("verbose", false, "Print additional log messages.")
 	extraLabels     = flagx.StringArray{}
 	titleTmplFile   = flagx.FileBytes(alerts.DefaultTitleTmpl)
 )
@@ -107,7 +108,7 @@ func mustServeWebhookReceiver(receiver *alerts.ReceiverHandler) *http.Server {
 
 func main() {
 	flag.Parse()
-	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Failed to read ArgsFromEnv")
+	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, *verbose), "Failed to read ArgsFromEnv")
 	if (*authtoken == "" && len(authtokenFile) == 0) || *githubOrg == "" || *githubRepo == "" {
 		flag.Usage()
 		osExit(1)
