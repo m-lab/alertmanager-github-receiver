@@ -85,25 +85,34 @@ type Client struct {
 
 // NewClient creates an Client authenticated using the Github authToken.
 // Future operations are only performed on the given github "org/repo".
-// Leave baseURL empty for github.com
-// If uploadURL is empty it will be set as baseURL
-func NewClient(baseURL, uploadURL, org, authToken, alertLabel string) (*Client, error) {
-	var githubClient *github.Client
-	var err error
-
+func NewClient(org, authToken, alertLabel string) *Client {
 	ctx := context.Background()
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
 	)
 
-	if baseURL == "" {
-		githubClient = github.NewClient(oauth2.NewClient(ctx, tokenSource))
-	} else {
-		if uploadURL == "" {
-			uploadURL = baseURL
-		}
-		githubClient, err = github.NewEnterpriseClient(baseURL, uploadURL, oauth2.NewClient(ctx, tokenSource))
+	client := &Client{
+		GithubClient: github.NewClient(oauth2.NewClient(ctx, tokenSource)),
+		org:          org,
+		alertLabel:   alertLabel,
 	}
+	return client
+}
+
+// NewEnterpriseClient creates an Enterprise Client authenticated using the Github authToken.
+// Future operations are only performed on the given github enterprise "org/repo".
+// If uploadURL is empty it will be set to baseURL
+func NewEnterpriseClient(baseURL, uploadURL, org, authToken, alertLabel string) (*Client, error) {
+	ctx := context.Background()
+	tokenSource := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: authToken},
+	)
+
+	if uploadURL == "" {
+		uploadURL = baseURL
+	}
+
+	githubClient, err := github.NewEnterpriseClient(baseURL, uploadURL, oauth2.NewClient(ctx, tokenSource))
 
 	client := &Client{
 		GithubClient: githubClient,

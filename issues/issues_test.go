@@ -96,9 +96,7 @@ func TestClient_CreateIssue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := issues.NewClient(
-				"",
-				"",
+			c := issues.NewClient(
 				tt.org,
 				"FAKE-AUTH-TOKEN",
 				tt.alertLabel,
@@ -187,9 +185,7 @@ func TestClient_ListOpenIssues(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := issues.NewClient(
-				"",
-				"",
+			c := issues.NewClient(
 				tt.org,
 				"FAKE-AUTH-TOKEN",
 				tt.alertLabel,
@@ -282,7 +278,7 @@ func TestClient_LabelIssue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := issues.NewClient("", "", "fake-org", "fake-auth", "fake-label")
+			c := issues.NewClient("fake-org", "fake-auth", "fake-label")
 			c.GithubClient.BaseURL = setupServer()
 			defer teardownServer()
 
@@ -359,9 +355,7 @@ func TestClient_CloseIssue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, _ := issues.NewClient(
-				"",
-				"",
+			c := issues.NewClient(
 				tt.org,
 				"FAKE-AUTH-TOKEN",
 				"",
@@ -398,7 +392,7 @@ func TestClient_CloseIssue(t *testing.T) {
 }
 
 func TestClient_rateLimit(t *testing.T) {
-	c, _ := issues.NewClient("", "", "fake-org", "FAKE-AUTH-TOKEN", "alert")
+	c := issues.NewClient("fake-org", "FAKE-AUTH-TOKEN", "alert")
 	c.GithubClient.BaseURL = setupServer()
 	defer teardownServer()
 
@@ -429,7 +423,7 @@ func TestClient_rateLimit(t *testing.T) {
 
 func TestClient_newEnterpriseClient(t *testing.T) {
 	baseURL := "https://github.example.com/"
-	c, _ := issues.NewClient(baseURL, "", "fake-org", "FAKE-AUTH-TOKEN", "alert")
+	c, _ := issues.NewEnterpriseClient(baseURL, "", "fake-org", "FAKE-AUTH-TOKEN", "alert")
 
 	if c.GithubClient.BaseURL.String() != baseURL {
 		t.Errorf("client baseURL got %q but want %q", c.GithubClient.BaseURL.String(), baseURL)

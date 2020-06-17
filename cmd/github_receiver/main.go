@@ -127,14 +127,19 @@ func main() {
 	if *enableInMemory {
 		client = local.NewClient()
 	} else {
-		var err error
-		client, err = issues.NewClient(*githubBaseURL, *githubUploadURL, *githubOrg, token, *alertLabel)
-		if err != nil {
-			fmt.Print(err)
-			osExit(1)
-			return
+		if *githubBaseURL == "" {
+			client = issues.NewClient(*githubOrg, token, *alertLabel)
+		} else {
+			var err error
+			client, err = issues.NewEnterpriseClient(*githubBaseURL, *githubUploadURL, *githubOrg, token, *alertLabel)
+			if err != nil {
+				fmt.Print(err)
+				osExit(1)
+				return
+			}
 		}
 	}
+
 	promSrv := prometheusx.MustServeMetrics()
 	defer promSrv.Close()
 
