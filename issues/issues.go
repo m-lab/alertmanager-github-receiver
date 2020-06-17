@@ -90,12 +90,36 @@ func NewClient(org, authToken, alertLabel string) *Client {
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
 	)
+
 	client := &Client{
 		GithubClient: github.NewClient(oauth2.NewClient(ctx, tokenSource)),
 		org:          org,
 		alertLabel:   alertLabel,
 	}
 	return client
+}
+
+// NewEnterpriseClient creates an Enterprise Client authenticated using the Github authToken.
+// Future operations are only performed on the given github enterprise "org/repo".
+// If uploadURL is empty it will be set to baseURL
+func NewEnterpriseClient(baseURL, uploadURL, org, authToken, alertLabel string) (*Client, error) {
+	ctx := context.Background()
+	tokenSource := oauth2.StaticTokenSource(
+		&oauth2.Token{AccessToken: authToken},
+	)
+
+	if uploadURL == "" {
+		uploadURL = baseURL
+	}
+
+	githubClient, err := github.NewEnterpriseClient(baseURL, uploadURL, oauth2.NewClient(ctx, tokenSource))
+
+	client := &Client{
+		GithubClient: githubClient,
+		org:          org,
+		alertLabel:   alertLabel,
+	}
+	return client, err
 }
 
 // CreateIssue creates a new Github issue. New issues are unassigned. Issues are

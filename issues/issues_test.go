@@ -420,3 +420,18 @@ func TestClient_rateLimit(t *testing.T) {
 		return
 	}
 }
+
+func TestClient_newEnterpriseClient(t *testing.T) {
+	baseURL := "https://github.example.com/"
+	c, _ := issues.NewEnterpriseClient(baseURL, "", "fake-org", "FAKE-AUTH-TOKEN", "alert")
+
+	if c.GithubClient.BaseURL.String() != baseURL {
+		t.Errorf("client baseURL got %q but want %q", c.GithubClient.BaseURL.String(), baseURL)
+		return
+	}
+
+	if c.GithubClient.UploadURL.String() != baseURL {
+		t.Errorf("client uploadURL got %q but want %q", c.GithubClient.UploadURL.String(), baseURL)
+		return
+	}
+}

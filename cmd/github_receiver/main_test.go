@@ -21,6 +21,7 @@ func Test_main(t *testing.T) {
 		authfile     string
 		authtoken    string
 		repo         string
+		baseURL      string
 		titleTmpl    string
 		inmemory     bool
 		expectStatus int
@@ -48,6 +49,13 @@ func Test_main(t *testing.T) {
 			titleTmpl:    "{{ x }}",
 			expectStatus: 1,
 		},
+		{
+			name:         "bad-baseURL",
+			repo:         "fake-repo",
+			authtoken:    "token",
+			baseURL:      "invalidURLEscape%zz",
+			expectStatus: 1,
+		},
 	}
 	flag.CommandLine.SetOutput(ioutil.Discard)
 	for _, tt := range tests {
@@ -60,6 +68,7 @@ func Test_main(t *testing.T) {
 		authtokenFile = []byte(tt.authfile)
 		*githubOrg = "fake-org"
 		*githubRepo = tt.repo
+		*githubBaseURL = tt.baseURL
 		*enableInMemory = tt.inmemory
 		// Guarantee no port conflicts between tests of main.
 		*prometheusx.ListenAddress = ":0"
