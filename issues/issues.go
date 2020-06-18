@@ -279,7 +279,9 @@ func getOrgAndRepoFromIssue(issue *github.Issue) (string, string, error) {
 		return "", "", fmt.Errorf("Issue has invalid RepositoryURL path values")
 	}
 
-	for i := 0; i <= len(fields); i++ {
+	//this supports urls of github ("http(s)://api.github.com/repos/org/repo") and
+	//enterprise ("http(s)://hostname/api/version/repos/org/repo")
+	for i := 0; i < len(fields); i++ {
 		if fields[i] == "repos" {
 			if i+2 == len(fields)-1 {
 				return fields[i+1], fields[i+2], nil
@@ -287,7 +289,6 @@ func getOrgAndRepoFromIssue(issue *github.Issue) (string, string, error) {
 		}
 	}
 	return "", "", fmt.Errorf("Issue has invalid RepositoryURL path values")
-
 }
 
 func updateRateMetrics(api string, resp *github.Response, err error) {

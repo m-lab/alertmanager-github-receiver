@@ -364,6 +364,15 @@ func TestClient_CloseIssue(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "error-incomplete-enterprise-url",
+			org:  "fake-org",
+			issue: &github.Issue{
+				Number:        github.Int(1),
+				RepositoryURL: github.String("https://example.github.com/api/v1/repos/fake-org"),
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
