@@ -275,10 +275,18 @@ func getOrgAndRepoFromIssue(issue *github.Issue) (string, string, error) {
 		return "", "", err
 	}
 	fields := strings.Split(u.Path, "/")
-	if len(fields) != 4 {
+	if len(fields) < 4 {
 		return "", "", fmt.Errorf("Issue has invalid RepositoryURL path values")
 	}
-	return fields[2], fields[3], nil
+
+	for i := 0; i <= len(fields); i++ {
+		if fields[i] == "repos" {
+			if i+2 == len(fields)-1 {
+				return fields[i+1], fields[i+2], nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("Issue has invalid RepositoryURL path values")
 
 }
 
