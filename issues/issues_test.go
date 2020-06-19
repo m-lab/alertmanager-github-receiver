@@ -326,6 +326,18 @@ func TestClient_CloseIssue(t *testing.T) {
 			},
 		},
 		{
+			name: "successWithEnterprise",
+			org:  "fake-org",
+			issue: &github.Issue{
+				Number:        github.Int(1),
+				RepositoryURL: github.String("https://example.github.com/api/v3/repos/fake-org/fake-repo"),
+			},
+			want: &github.Issue{
+				Number:        github.Int(1),
+				RepositoryURL: github.String("https://example.github.com/api/v3/repos/fake-org/fake-repo"),
+			},
+		},
+		{
 			name:    "error-empty-repository-url",
 			org:     "fake-org",
 			issue:   &github.Issue{RepositoryURL: nil}, // Empty repostiry url.
@@ -352,6 +364,15 @@ func TestClient_CloseIssue(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "error-incomplete-enterprise-url",
+			org:  "fake-org",
+			issue: &github.Issue{
+				Number:        github.Int(1),
+				RepositoryURL: github.String("https://example.github.com/api/v1/repos/fake-org"),
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -363,7 +384,6 @@ func TestClient_CloseIssue(t *testing.T) {
 			c.GithubClient.BaseURL = setupServer()
 			defer teardownServer()
 
-			u := "https://api.github.com/repos/fake-org/fake-repo"
 			testMux.HandleFunc("/repos/fake-org/fake-repo/issues/1", func(w http.ResponseWriter, r *http.Request) {
 				// TODO: add rate limit headers in response to trigger a RateLimitError.
 				if tt.wantErr {
@@ -376,7 +396,7 @@ func TestClient_CloseIssue(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				fmt.Fprintf(w, `{"number":1, "repository_url":"%s"}`, u)
+				fmt.Fprintf(w, `{"number":1, "repository_url":"%s"}`, tt.issue.GetRepositoryURL())
 			})
 
 			got, err := c.CloseIssue(tt.issue)
