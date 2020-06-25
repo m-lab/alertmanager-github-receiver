@@ -65,7 +65,7 @@ func Test_main(t *testing.T) {
 			}
 		}
 		*authtoken = tt.authtoken
-		authtokenFile = []byte(tt.authfile)
+		authtokenFile.Bytes = []byte(tt.authfile)
 		*githubOrg = "fake-org"
 		*githubRepo = tt.repo
 		*githubBaseURL = tt.baseURL

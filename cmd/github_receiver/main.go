@@ -39,7 +39,7 @@ import (
 
 var (
 	authtoken       = flag.String("authtoken", "", "Oauth2 token for access to github API.")
-	authtokenFile   = flagx.FileBytes{}
+	authtokenFile   = flagx.File{}
 	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
 	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
 	githubBaseURL   = flag.String("enterprise.base-url", "", "The URL of your GitHub Enterprise with API suffix (for example '/api/v3/').")
@@ -87,7 +87,7 @@ EXAMPLE
 
 func init() {
 	flag.Var(&extraLabels, "label", "Extra labels to add to issues at creation time.")
-	flag.Var(&authtokenFile, "authtokenFile", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
+	flag.Var(&authtokenFile, "authtoken-file", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
 	flag.Var(&titleTmplFile, "title-template-file", "File containing a template to generate issue titles.")
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), usage)
@@ -110,15 +110,15 @@ func mustServeWebhookReceiver(receiver *alerts.ReceiverHandler) *http.Server {
 func main() {
 	flag.Parse()
 	rtx.Must(flagx.ArgsFromEnv(flag.CommandLine), "Failed to read ArgsFromEnv")
-	if (*authtoken == "" && len(authtokenFile) == 0) || *githubOrg == "" || *githubRepo == "" {
+	if (*authtoken == "" && len(authtokenFile.Bytes) == 0) || *githubOrg == "" || *githubRepo == "" {
 		flag.Usage()
 		osExit(1)
 		return
 	}
 
 	var token string
-	if len(authtokenFile) != 0 {
-		token = string(authtokenFile)
+	if len(authtokenFile.Bytes) != 0 {
+		token = authtokenFile.Content()
 	} else {
 		token = *authtoken
 	}
