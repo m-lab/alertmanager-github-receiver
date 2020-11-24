@@ -39,7 +39,7 @@ you would a password.
 
 To start the github receiver locally:
 ```
-docker run -it measurementlab/alertmanager-github-receiver:latest
+docker run -it -p 9393:9393 measurementlab/alertmanager-github-receiver:latest
         -authtoken=$(GITHUB_AUTH_TOKEN) -org=<org> -repo=<repo>
 ```
 
