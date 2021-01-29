@@ -83,6 +83,23 @@ curl -XPOST --data-binary "${msg}" http://localhost:9393/v1/receiver
 
 # Configuration
 
+## Alertmanager & Github Receiver
+
+The Alertmanager configuration controls what labels are present on alerts
+delivered to the github-receiver. The github-receiver configuration must be
+compatible with these settings to work effectively.
+
+For example, it is common for the Alertmanager to use alert routes that
+`group_by: ['alertname']`. See: https://github.com/prometheus/alertmanager#example
+
+And, the github-receiver's default "title template" is
+`{{ .Data.GroupLabels.alertname }}`, which depends on an alertname group
+label.
+
+If an alert does not include this label, the template will evaluate to `<no value>`.
+To prevent this, ensure that the github-receiver title template uses labels available
+in an Alertmanager [Message](https://godoc.org/github.com/prometheus/alertmanager/notify/webhook#Message).
+
 ## Auto close
 
 If `-enable-auto-close` is specified, the program will close each issue as its
