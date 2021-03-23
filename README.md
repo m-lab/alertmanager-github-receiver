@@ -105,7 +105,7 @@ in an Alertmanager [Message](https://godoc.org/github.com/prometheus/alertmanage
 If `-enable-auto-close` is specified, the program will close each issue as its
 corresponding alert is resolved. It searches for matching issues by filtering
 open issues on the value of `-alertlabel` and then matching issue titles. The
-issue title template can be overridden using `-title-template-files` for greater
+issue title template can be overridden using `-title-template-file` for greater
 (or lesser) specificity. The default template is
 `{{ .Data.GroupLabels.alertname }}`, which sets the issue title to the alert
 name. The template is passed a
