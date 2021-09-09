@@ -268,7 +268,7 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 func getOrgAndRepoFromIssue(issue *github.Issue) (string, string, error) {
 	repoURL := issue.GetRepositoryURL()
 	if repoURL == "" {
-		return "", "", fmt.Errorf("Issue has invalid RepositoryURL value")
+		return "", "", fmt.Errorf("issue has invalid RepositoryURL value")
 	}
 	u, err := url.Parse(repoURL)
 	if err != nil {
@@ -276,7 +276,7 @@ func getOrgAndRepoFromIssue(issue *github.Issue) (string, string, error) {
 	}
 	fields := strings.Split(u.Path, "/")
 	if len(fields) < 4 {
-		return "", "", fmt.Errorf("Issue has invalid RepositoryURL path values")
+		return "", "", fmt.Errorf("issue has invalid RepositoryURL path values")
 	}
 
 	//this supports urls of github ("http(s)://api.github.com/repos/org/repo") and
@@ -288,7 +288,7 @@ func getOrgAndRepoFromIssue(issue *github.Issue) (string, string, error) {
 			}
 		}
 	}
-	return "", "", fmt.Errorf("Issue has invalid RepositoryURL path values")
+	return "", "", fmt.Errorf("issue has invalid RepositoryURL path values")
 }
 
 func updateRateMetrics(api string, resp *github.Response, err error) {
