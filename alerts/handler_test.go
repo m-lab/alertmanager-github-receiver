@@ -125,6 +125,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 		msgRepo           string
 		fakeClient        *fakeClient
 		titleTmpl         string
+		alertTmpl         string
 		httpStatus        int
 		expectReceiverErr bool
 		wantMessageErr    bool
@@ -288,7 +289,12 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			if titleTmpl == "" {
 				titleTmpl = DefaultTitleTmpl
 			}
-			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, titleTmpl)
+
+			alertTmpl := tt.alertTmpl
+			if alertTmpl == "" {
+				alertTmpl = AlertMD
+			}
+			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, titleTmpl, alertTmpl)
 			if tt.expectReceiverErr {
 				if err == nil {
 					t.Fatal()
