@@ -6,15 +6,12 @@ RUN go mod download
 ADD . ./
 
 # TODO(soltesz): Use vgo for dependencies.
-ENV CGO_ENABLED 0
-RUN go build \
+RUN CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
+    go build \
     -v \
-    -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h) -w -s" \
+    -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h) -w -s -extldflags '-static'" \
     ./cmd/github_receiver
 
-FROM alpine
-RUN apk add --no-cache ca-certificates && \
-    update-ca-certificates
-WORKDIR /
+FROM gcr.io/distroless/static
 COPY --from=builder /go/src/github.com/m-lab/alertmanager-github-receiver/github_receiver ./
 ENTRYPOINT ["/github_receiver"]
