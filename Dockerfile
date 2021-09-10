@@ -9,7 +9,7 @@ ADD . ./
 ENV CGO_ENABLED 0
 RUN go build \
     -v \
-    -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h)" \
+    -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h) -w -s" \
     ./cmd/github_receiver
 
 FROM alpine
