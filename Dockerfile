@@ -5,7 +5,6 @@ ADD go.mod go.sum ./
 RUN go mod download
 ADD . ./
 
-# TODO(soltesz): Use vgo for dependencies.
 RUN CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
     go build \
     -v \
