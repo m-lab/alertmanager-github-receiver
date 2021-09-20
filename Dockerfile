@@ -8,7 +8,7 @@ ADD . ./
 RUN CGO_ENABLED=0 GOARCH=amd64 GOOS=linux \
     go build \
     -v \
-    -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h) -w -s -extldflags '-static'" \
+    -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h) -w -s" \
     ./cmd/github_receiver
 
 # See also: https://github.com/GoogleContainerTools/distroless/blob/main/base/README.md
