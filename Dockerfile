@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine as builder
+FROM golang:1.18 as builder
 
 WORKDIR /go/src/github.com/m-lab/alertmanager-github-receiver
 ADD go.mod go.sum ./

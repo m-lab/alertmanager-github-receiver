@@ -1,11 +1,11 @@
 language: go
 
 go:
- - "1.14"
+ - 1.18
 
 before_install:
   # Coverage tools
-  - go get github.com/mattn/goveralls
+  - go install github.com/mattn/goveralls@latest
 
 install:
 - go get -t -v ./...
