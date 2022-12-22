@@ -191,7 +191,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:  `{{ (index .Data.Alerts 0).Labels.alertname }}`,
-			alertTmpl: string(`Disk is running full on {{ $labels.instance }}`),
+			alertTmpl: string(`Disk is running full on {{ (index .Data.Alerts 0).Labels.instance }}`),
 			httpStatus: http.StatusOK,
 		},
 		{
