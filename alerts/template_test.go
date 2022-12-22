@@ -58,17 +58,17 @@ func TestReceiverHandler_formatTitle(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "success",
+			name:     "success-simple",
 			template: "foo",
 			want:     "foo",
 		},
 		{
-			name:     "success-firing",
+			name:     "success-template-simple",
 			template: "{{ .Data.Status }}",
 			want:     "firing",
 		},
 		{
-			name:     "success-projects",
+			name:     "success-template-complex",
 			template: "{{ range .Alerts }}{{ .Annotations.env }} {{ end }}",
 			want:     "prod stage ",
 		},
