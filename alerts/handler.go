@@ -100,10 +100,9 @@ func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, resol
 		return nil, err
 	}
 
-	var err0 error
-	rh.alertTmpl = template.Must(template.New("alert").Parse(alertTmplStr))
-	if err0 != nil {
-		return nil, err0
+	rh.alertTmpl, err = template.New("alert").Parse(alertTmplStr)
+	if err != nil {
+		return nil, err
 	}
 
 	return &rh, nil
