@@ -235,6 +235,21 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			httpStatus:        http.StatusInternalServerError,
 		},
 		{
+			name:           "failure-alert-template-bad-syntax",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient: &fakeClient{
+				listIssues: []*github.Issue{
+					createIssue("DiskRunningFull", "body1", ""),
+				},
+			},
+			titleTmpl: 	   `{{ (index .Data.Alerts 1).Status }}`,
+			alertTmpl:         `{{ x }}`,
+			expectReceiverErr: true,
+			httpStatus:        http.StatusInternalServerError,
+		},
+		{
 			name:           "failure-unmarshal-error",
 			method:         http.MethodPost,
 			httpStatus:     http.StatusBadRequest,
