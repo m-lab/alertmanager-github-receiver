@@ -16,9 +16,7 @@
 package alerts
 
 import (
-	"fmt"
 	"html/template"
-	"strings"
 	"testing"
 
 	"github.com/prometheus/alertmanager/notify/webhook"
@@ -39,7 +37,7 @@ func Test_formatIssueBody(t *testing.T) {
 	}
 }
 
-func TestFormatTitleSimple(t *testing.T) {
+func TestReceiverHandler_formatTitle(t *testing.T) {
 	msg := webhook.Message{
 		Data: &amtmpl.Data{
 			Status: "firing",
@@ -54,41 +52,46 @@ func TestFormatTitleSimple(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		tmplTxt      string
-		expectErrTxt string
-		expectOutput string
+		name     string
+		template string
+		want     string
+		wantErr  bool
 	}{
-		{"foo", "", "foo"},
-		{"{{ .Data.Status }}", "", "firing"},
-		{"{{ .Status }}", "", "firing"},
-		{"{{ range .Alerts }}{{ .Annotations.env }} {{ end }}", "", "prod stage "},
-		{"{{ .Foo }}", "can't evaluate field Foo", ""},
+		{
+			name:     "success-simple",
+			template: "foo",
+			want:     "foo",
+		},
+		{
+			name:     "success-template-simple",
+			template: "{{ .Data.Status }}",
+			want:     "firing",
+		},
+		{
+			name:     "success-template-complex",
+			template: "{{ range .Alerts }}{{ .Annotations.env }} {{ end }}",
+			want:     "prod stage ",
+		},
+		{
+			name:     "error-bad-template",
+			template: "{{ .Foo }}",
+			wantErr:  true,
+		},
 	}
-
-	for testNum, tc := range tests {
-		testName := fmt.Sprintf("tc=%d", testNum)
-		t.Run(testName, func(t *testing.T) {
-			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, tc.tmplTxt)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, tt.template)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			title, err := rh.formatTitle(&msg)
-			if tc.expectErrTxt == "" && err != nil {
-				t.Error(err)
+			got, err := rh.formatTitle(&msg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ReceiverHandler.formatTitle() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-			if tc.expectErrTxt != "" {
-				if err == nil {
-					t.Error()
-				} else if !strings.Contains(err.Error(), tc.expectErrTxt) {
-					t.Error(err.Error())
-				}
-			}
-			if tc.expectOutput == "" && title != "" {
-				t.Error(title)
-			}
-			if !strings.Contains(title, tc.expectOutput) {
-				t.Error(title)
+			if got != tt.want {
+				t.Errorf("ReceiverHandler.formatTitle() = %v, want %v", got, tt.want)
 			}
 		})
 	}
