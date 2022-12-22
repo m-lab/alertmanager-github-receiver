@@ -46,7 +46,7 @@ func TestFormatIssueBodySimple(t *testing.T) {
 		{"foo", "", "foo"},
 		{"{{ .Data.Status }}", "", "firing"},
 		{"{{ .Status }}", "", "firing"},
-		{"{{ range .NOT_REAL_FIELD }}\n* {{.Status}}\n{{end}}", "", ""},
+		{"{{ range .NOT_REAL_FIELD }}\n* {{.Status}}\n{{end}}", "can't evaluate field NOT_REAL_FIELD in type *webhook.Message", ""},
 		{"{{ .Foo }}", "can't evaluate field Foo", ""},
 	}
 
