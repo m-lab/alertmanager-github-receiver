@@ -250,6 +250,17 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			httpStatus:        http.StatusInternalServerError,
 		},
 		{
+			name:           "failure-alert-template-found-issue-nil",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient: &fakeClient{},
+			titleTmpl: 	   `{{ (index .Data.Alerts 1).Status }}`,
+			alertTmpl:         `{{ x }}`,
+			expectReceiverErr: true,
+			httpStatus:        http.StatusInternalServerError,
+		},
+		{
 			name:           "failure-unmarshal-error",
 			method:         http.MethodPost,
 			httpStatus:     http.StatusBadRequest,
