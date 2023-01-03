@@ -191,7 +191,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:  `{{ (index .Data.Alerts 0).Labels.alertname }}`,
-			alertTmpl: string(`Disk is running full on {{ (index .Data.Alerts 0).Labels.instance }}`),
+			alertTmpl:  string(`Disk is running full on {{ (index .Data.Alerts 0).Labels.instance }}`),
 			httpStatus: http.StatusOK,
 		},
 		{
@@ -244,7 +244,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 					createIssue("DiskRunningFull", "body1", ""),
 				},
 			},
-			titleTmpl: 	   `{{ (index .Data.Alerts 1).Status }}`,
+			titleTmpl:         `{{ (index .Data.Alerts 1).Status }}`,
 			alertTmpl:         `{{ x }}`,
 			expectReceiverErr: true,
 			httpStatus:        http.StatusInternalServerError,

@@ -16,15 +16,13 @@
 package alerts
 
 import (
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/prometheus/alertmanager/notify/webhook"
 	amtmpl "github.com/prometheus/alertmanager/template"
 )
 
-func TestFormatIssueBodySimple(t *testing.T) {
+func Test_formatIssueBody(t *testing.T) {
 	msg := webhook.Message{
 		Data: &amtmpl.Data{
 			Status: "firing",
@@ -39,41 +37,51 @@ func TestFormatIssueBodySimple(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		tmplTxt      string
-		expectErrTxt string
-		expectOutput string
+		name     string
+		template string
+		want     string
+		wantErr  bool
 	}{
-		{"foo", "", "foo"},
-		{"{{ .Data.Status }}", "", "firing"},
-		{"{{ .Status }}", "", "firing"},
-		{"{{ range .NOT_REAL_FIELD }}\n* {{.Status}}\n{{end}}", "can't evaluate field NOT_REAL_FIELD in type *webhook.Message", ""},
-		{"{{ .Foo }}", "can't evaluate field Foo", ""},
+		{
+			name:     "success",
+			template: "foo",
+			want:     "foo",
+		},
+		{
+			name:     "success-data-status",
+			template: "{{ .Data.Status }}",
+			want:     "firing",
+		},
+		{
+			name:     "success-status",
+			template: "{{ .Status }}",
+			want:     "firing",
+		},
+		{
+			name:     "error-template",
+			template: "{{ range .NOT_REAL_FIELD }}\n* {{.Status}}\n{{end}}",
+			wantErr:  true,
+		},
+		{
+			name:     "error-template-no-field",
+			template: "{{ .Foo }}",
+			wantErr:  true,
+		},
 	}
-
-	for testNum, tc := range tests {
-		testName := fmt.Sprintf("tc=%d", testNum)
-		t.Run(testName, func(t *testing.T) {
-			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, tc.tmplTxt, tc.tmplTxt)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, "", tt.template)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			body, err := rh.formatIssueBody(&msg)
-			if tc.expectErrTxt == "" && err != nil {
-				t.Error(err)
+			got, err := rh.formatIssueBody(&msg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("formatIssueBody() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-			if tc.expectErrTxt != "" {
-				if err == nil {
-					t.Error()
-				} else if !strings.Contains(err.Error(), tc.expectErrTxt) {
-					t.Error(err.Error())
-				}
-			}
-			if tc.expectOutput == "" && body != "" {
-				t.Error(body)
-			}
-			if !strings.Contains(body, tc.expectOutput) {
-				t.Error(body)
+			if got != tt.want {
+				t.Errorf("formatIssueBody() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -122,7 +130,7 @@ func TestReceiverHandler_formatTitle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, tt.template)
+			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, tt.template, "")
 			if err != nil {
 				t.Fatal(err)
 			}
