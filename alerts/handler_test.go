@@ -4,14 +4,14 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 package alerts
 
 import (
@@ -125,6 +125,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 		msgRepo           string
 		fakeClient        *fakeClient
 		titleTmpl         string
+		alertTmpl         string
 		httpStatus        int
 		expectReceiverErr bool
 		wantMessageErr    bool
@@ -190,6 +191,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:  `{{ (index .Data.Alerts 0).Labels.alertname }}`,
+			alertTmpl: string(`Disk is running full on {{ (index .Data.Alerts 0).Labels.instance }}`),
 			httpStatus: http.StatusOK,
 		},
 		{
@@ -229,6 +231,21 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:         `{{ x }}`,
+			expectReceiverErr: true,
+			httpStatus:        http.StatusInternalServerError,
+		},
+		{
+			name:           "failure-alert-template-bad-syntax",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient: &fakeClient{
+				listIssues: []*github.Issue{
+					createIssue("DiskRunningFull", "body1", ""),
+				},
+			},
+			titleTmpl: 	   `{{ (index .Data.Alerts 1).Status }}`,
+			alertTmpl:         `{{ x }}`,
 			expectReceiverErr: true,
 			httpStatus:        http.StatusInternalServerError,
 		},
@@ -288,7 +305,12 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			if titleTmpl == "" {
 				titleTmpl = DefaultTitleTmpl
 			}
-			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, titleTmpl)
+
+			alertTmpl := tt.alertTmpl
+			if alertTmpl == "" {
+				alertTmpl = AlertMD
+			}
+			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, titleTmpl, alertTmpl)
 			if tt.expectReceiverErr {
 				if err == nil {
 					t.Fatal()
