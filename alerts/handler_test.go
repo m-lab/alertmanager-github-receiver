@@ -141,6 +141,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 					createIssue("DiskRunningFull", "body1", ""),
 				},
 			},
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  AlertMD,
 			httpStatus: http.StatusOK,
 		},
 		{
@@ -149,6 +151,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			msgAlert:       "DiskRunningFull",
 			msgAlertStatus: "resolved",
 			fakeClient:     &fakeClient{},
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      AlertMD,
 			httpStatus:     http.StatusOK,
 		},
 		{
@@ -157,6 +161,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			msgAlert:       "DiskRunningFull",
 			msgAlertStatus: "firing",
 			fakeClient:     &fakeClient{},
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      AlertMD,
 			httpStatus:     http.StatusOK,
 		},
 		{
@@ -166,6 +172,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			msgAlertStatus: "firing",
 			msgRepo:        "custom-repo",
 			fakeClient:     &fakeClient{},
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      AlertMD,
 			httpStatus:     http.StatusOK,
 		},
 		{
@@ -178,6 +186,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 					createIssue("DiskRunningFull", "body1", ""),
 				},
 			},
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  AlertMD,
 			httpStatus: http.StatusOK,
 		},
 		{
@@ -205,6 +215,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 				labelError: errors.New("No such label"),
 			},
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  AlertMD,
 			httpStatus: http.StatusInternalServerError,
 		},
 		{
@@ -218,6 +230,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:  `{{ (index .Data.Alerts 1).Status }}`,
+			alertTmpl:  AlertMD,
 			httpStatus: http.StatusInternalServerError,
 		},
 		{
@@ -231,6 +244,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:         `{{ x }}`,
+			alertTmpl:         AlertMD,
 			expectReceiverErr: true,
 			httpStatus:        http.StatusInternalServerError,
 		},
@@ -252,12 +266,16 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 		{
 			name:           "failure-unmarshal-error",
 			method:         http.MethodPost,
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      AlertMD,
 			httpStatus:     http.StatusBadRequest,
 			wantMessageErr: true,
 		},
 		{
 			name:        "failure-reader-error",
 			method:      http.MethodPost,
+			titleTmpl:   DefaultTitleTmpl,
+			alertTmpl:   AlertMD,
 			httpStatus:  http.StatusInternalServerError,
 			wantReadErr: true,
 		},
@@ -267,12 +285,26 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			fakeClient: &fakeClient{
 				listError: fmt.Errorf("Fake error listing current issues"),
 			},
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  AlertMD,
 			httpStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "failure-wrong-method",
 			method:     http.MethodGet,
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  AlertMD,
 			httpStatus: http.StatusMethodNotAllowed,
+		},
+		{
+			name:           "failure-body-template",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient:     &fakeClient{},
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      `{{ .NOTAREAL_FIELD }}`,
+			httpStatus:     http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
@@ -301,16 +333,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				return
 			}
 
-			titleTmpl := tt.titleTmpl
-			if titleTmpl == "" {
-				titleTmpl = DefaultTitleTmpl
-			}
-
-			alertTmpl := tt.alertTmpl
-			if alertTmpl == "" {
-				alertTmpl = AlertMD
-			}
-			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, titleTmpl, alertTmpl)
+			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, tt.titleTmpl, tt.alertTmpl)
 			if tt.expectReceiverErr {
 				if err == nil {
 					t.Fatal()
