@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	// alertMD reports all alert labels and annotations in a markdown format
+	// DefaultAlertTmpl reports all alert labels and annotations in a markdown format
 	// that renders correctly in github issues.
 	//
 	// Example:
@@ -49,7 +49,7 @@ const (
 	//	 - alertname = DiskRunningFull
 	//	 - dev = sda2
 	//   - instance = example2
-	AlertMD = `
+	DefaultAlertTmpl = `
 Alertmanager URL: {{.Data.ExternalURL}}
 {{range .Data.Alerts}}
   * {{.Status}} {{.GeneratorURL}}

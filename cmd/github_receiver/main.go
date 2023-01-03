@@ -51,7 +51,7 @@ var (
 	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
 	extraLabels     = flagx.StringArray{}
 	titleTmplFile   = flagx.FileBytes(alerts.DefaultTitleTmpl)
-	alertTmplFile   = flagx.FileBytes(alerts.AlertMD)
+	alertTmplFile   = flagx.FileBytes(alerts.DefaultAlertTmpl)
 )
 
 // Metrics.
