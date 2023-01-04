@@ -4,14 +4,14 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//////////////////////////////////////////////////////////////////////////////
+// ////////////////////////////////////////////////////////////////////////////
 package alerts
 
 import (
@@ -125,6 +125,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 		msgRepo           string
 		fakeClient        *fakeClient
 		titleTmpl         string
+		alertTmpl         string
 		httpStatus        int
 		expectReceiverErr bool
 		wantMessageErr    bool
@@ -140,6 +141,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 					createIssue("DiskRunningFull", "body1", ""),
 				},
 			},
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  DefaultAlertTmpl,
 			httpStatus: http.StatusOK,
 		},
 		{
@@ -148,6 +151,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			msgAlert:       "DiskRunningFull",
 			msgAlertStatus: "resolved",
 			fakeClient:     &fakeClient{},
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      DefaultAlertTmpl,
 			httpStatus:     http.StatusOK,
 		},
 		{
@@ -156,6 +161,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			msgAlert:       "DiskRunningFull",
 			msgAlertStatus: "firing",
 			fakeClient:     &fakeClient{},
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      DefaultAlertTmpl,
 			httpStatus:     http.StatusOK,
 		},
 		{
@@ -165,6 +172,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			msgAlertStatus: "firing",
 			msgRepo:        "custom-repo",
 			fakeClient:     &fakeClient{},
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      DefaultAlertTmpl,
 			httpStatus:     http.StatusOK,
 		},
 		{
@@ -177,6 +186,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 					createIssue("DiskRunningFull", "body1", ""),
 				},
 			},
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  DefaultAlertTmpl,
 			httpStatus: http.StatusOK,
 		},
 		{
@@ -190,6 +201,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:  `{{ (index .Data.Alerts 0).Labels.alertname }}`,
+			alertTmpl:  `Disk is running full on {{ (index .Data.Alerts 0).Labels.instance }}`,
 			httpStatus: http.StatusOK,
 		},
 		{
@@ -203,6 +215,8 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 				labelError: errors.New("No such label"),
 			},
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  DefaultAlertTmpl,
 			httpStatus: http.StatusInternalServerError,
 		},
 		{
@@ -216,6 +230,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:  `{{ (index .Data.Alerts 1).Status }}`,
+			alertTmpl:  DefaultAlertTmpl,
 			httpStatus: http.StatusInternalServerError,
 		},
 		{
@@ -229,18 +244,38 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				},
 			},
 			titleTmpl:         `{{ x }}`,
+			alertTmpl:         DefaultAlertTmpl,
+			expectReceiverErr: true,
+			httpStatus:        http.StatusInternalServerError,
+		},
+		{
+			name:           "failure-alert-template-bad-syntax",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient: &fakeClient{
+				listIssues: []*github.Issue{
+					createIssue("DiskRunningFull", "body1", ""),
+				},
+			},
+			titleTmpl:         `{{ (index .Data.Alerts 1).Status }}`,
+			alertTmpl:         `{{ x }}`,
 			expectReceiverErr: true,
 			httpStatus:        http.StatusInternalServerError,
 		},
 		{
 			name:           "failure-unmarshal-error",
 			method:         http.MethodPost,
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      DefaultAlertTmpl,
 			httpStatus:     http.StatusBadRequest,
 			wantMessageErr: true,
 		},
 		{
 			name:        "failure-reader-error",
 			method:      http.MethodPost,
+			titleTmpl:   DefaultTitleTmpl,
+			alertTmpl:   DefaultAlertTmpl,
 			httpStatus:  http.StatusInternalServerError,
 			wantReadErr: true,
 		},
@@ -250,12 +285,26 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 			fakeClient: &fakeClient{
 				listError: fmt.Errorf("Fake error listing current issues"),
 			},
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  DefaultAlertTmpl,
 			httpStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "failure-wrong-method",
 			method:     http.MethodGet,
+			titleTmpl:  DefaultTitleTmpl,
+			alertTmpl:  DefaultAlertTmpl,
 			httpStatus: http.StatusMethodNotAllowed,
+		},
+		{
+			name:           "failure-body-template",
+			method:         http.MethodPost,
+			msgAlert:       "DiskRunningFull",
+			msgAlertStatus: "firing",
+			fakeClient:     &fakeClient{},
+			titleTmpl:      DefaultTitleTmpl,
+			alertTmpl:      `{{ .NOTAREAL_FIELD }}`,
+			httpStatus:     http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
@@ -284,11 +333,7 @@ func TestReceiverHandler_ServeHTTP(t *testing.T) {
 				return
 			}
 
-			titleTmpl := tt.titleTmpl
-			if titleTmpl == "" {
-				titleTmpl = DefaultTitleTmpl
-			}
-			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, titleTmpl)
+			rh, err := NewReceiver(tt.fakeClient, "default", true, "", nil, tt.titleTmpl, tt.alertTmpl)
 			if tt.expectReceiverErr {
 				if err == nil {
 					t.Fatal()

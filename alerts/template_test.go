@@ -16,7 +16,6 @@
 package alerts
 
 import (
-	"html/template"
 	"testing"
 
 	"github.com/prometheus/alertmanager/notify/webhook"
@@ -24,16 +23,67 @@ import (
 )
 
 func Test_formatIssueBody(t *testing.T) {
-	wh := createWebhookMessage("FakeAlertName", "firing", "")
-	brokenTemplate := `
-{{range .NOT_REAL_FIELD}}
-    * {{.Status}}
-{{end}}
-	`
-	alertTemplate = template.Must(template.New("alert").Parse(brokenTemplate))
-	got := formatIssueBody(wh)
-	if got != "" {
-		t.Errorf("formatIssueBody() = %q, want empty string", got)
+	msg := webhook.Message{
+		Data: &amtmpl.Data{
+			Status: "firing",
+			Alerts: []amtmpl.Alert{
+				{
+					Annotations: amtmpl.KV{"env": "prod", "svc": "foo"},
+				},
+				{
+					Annotations: amtmpl.KV{"env": "stage", "svc": "foo"},
+				},
+			},
+		},
+	}
+	tests := []struct {
+		name     string
+		template string
+		want     string
+		wantErr  bool
+	}{
+		{
+			name:     "success",
+			template: "foo",
+			want:     "foo",
+		},
+		{
+			name:     "success-data-status",
+			template: "{{ .Data.Status }}",
+			want:     "firing",
+		},
+		{
+			name:     "success-status",
+			template: "{{ .Status }}",
+			want:     "firing",
+		},
+		{
+			name:     "error-template",
+			template: "{{ range .NOT_REAL_FIELD }}\n* {{.Status}}\n{{end}}",
+			wantErr:  true,
+		},
+		{
+			name:     "error-template-no-field",
+			template: "{{ .Foo }}",
+			wantErr:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, "", tt.template)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got, err := rh.formatIssueBody(&msg)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("formatIssueBody() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("formatIssueBody() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -80,7 +130,7 @@ func TestReceiverHandler_formatTitle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, tt.template)
+			rh, err := NewReceiver(&fakeClient{}, "default", false, "", nil, tt.template, "")
 			if err != nil {
 				t.Fatal(err)
 			}
