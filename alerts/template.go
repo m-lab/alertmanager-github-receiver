@@ -18,14 +18,12 @@ package alerts
 import (
 	"bytes"
 	"fmt"
-	"html/template"
-	"log"
 
 	"github.com/prometheus/alertmanager/notify/webhook"
 )
 
 const (
-	// alertMD reports all alert labels and annotations in a markdown format
+	// DefaultAlertTmpl reports all alert labels and annotations in a markdown format
 	// that renders correctly in github issues.
 	//
 	// Example:
@@ -51,7 +49,7 @@ const (
 	//	 - alertname = DiskRunningFull
 	//	 - dev = sda2
 	//   - instance = example2
-	alertMD = `
+	DefaultAlertTmpl = `
 Alertmanager URL: {{.Data.ExternalURL}}
 {{range .Data.Alerts}}
   * {{.Status}} {{.GeneratorURL}}
@@ -77,10 +75,6 @@ TODO: add graph url from annotations.
 	DefaultTitleTmpl = `{{ .Data.GroupLabels.alertname }}`
 )
 
-var (
-	alertTemplate = template.Must(template.New("alert").Parse(alertMD))
-)
-
 func id(msg *webhook.Message) string {
 	return fmt.Sprintf("0x%x", msg.GroupKey)
 }
@@ -95,13 +89,10 @@ func (rh *ReceiverHandler) formatTitle(msg *webhook.Message) (string, error) {
 }
 
 // formatIssueBody constructs an issue body from a webhook message.
-func formatIssueBody(msg *webhook.Message) string {
+func (rh *ReceiverHandler) formatIssueBody(msg *webhook.Message) (string, error) {
 	var buf bytes.Buffer
-	err := alertTemplate.Execute(&buf, msg)
-	if err != nil {
-		log.Printf("Error executing template: %s", err)
-		return ""
+	if err := rh.alertTmpl.Execute(&buf, msg); err != nil {
+		return "", err
 	}
-	s := buf.String()
-	return fmt.Sprintf("<!-- ID: %s -->\n%s", id(msg), s)
+	return buf.String(), nil
 }

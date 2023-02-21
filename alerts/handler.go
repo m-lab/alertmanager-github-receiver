@@ -79,10 +79,13 @@ type ReceiverHandler struct {
 
 	// titleTmpl is used to format the title of the new issue.
 	titleTmpl *template.Template
+
+	// alertTmpl is used to format the context of the new issue.
+	alertTmpl *template.Template
 }
 
 // NewReceiver creates a new ReceiverHandler.
-func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, resolvedLabel string, extraLabels []string, titleTmplStr string) (*ReceiverHandler, error) {
+func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, resolvedLabel string, extraLabels []string, titleTmplStr string, alertTmplStr string) (*ReceiverHandler, error) {
 	rh := ReceiverHandler{
 		Client:        client,
 		DefaultRepo:   githubRepo,
@@ -93,6 +96,11 @@ func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, resol
 
 	var err error
 	rh.titleTmpl, err = template.New("title").Parse(titleTmplStr)
+	if err != nil {
+		return nil, err
+	}
+
+	rh.alertTmpl, err = template.New("alert").Parse(alertTmplStr)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +179,10 @@ func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
 	// issue from github, so create a new issue.
 	if msg.Data.Status == "firing" {
 		if foundIssue == nil {
-			msgBody := formatIssueBody(msg)
+			msgBody, err := rh.formatIssueBody(msg)
+			if err != nil {
+				return fmt.Errorf("format body for %q: %s", msg.GroupKey, err)
+			}
 			_, err = rh.Client.CreateIssue(rh.getTargetRepo(msg), msgTitle, msgBody, rh.ExtraLabels)
 			if err == nil {
 				createdIssues.WithLabelValues(alertName).Inc()

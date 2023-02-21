@@ -51,6 +51,7 @@ var (
 	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
 	extraLabels     = flagx.StringArray{}
 	titleTmplFile   = flagx.FileBytes(alerts.DefaultTitleTmpl)
+	alertTmplFile   = flagx.FileBytes(alerts.DefaultAlertTmpl)
 )
 
 // Metrics.
@@ -89,8 +90,9 @@ func init() {
 	flag.Var(&extraLabels, "label", "Extra labels to add to issues at creation time.")
 	flag.Var(&authtokenFile, "authtoken-file", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
 	flag.Var(&titleTmplFile, "title-template-file", "File containing a template to generate issue titles.")
+	flag.Var(&alertTmplFile, "alert-template-file", "File containing Markdown template to generate issue context.")
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), usage)
+		fmt.Fprint(flag.CommandLine.Output(), usage)
 		flag.PrintDefaults()
 	}
 }
@@ -141,7 +143,7 @@ func main() {
 	promSrv := prometheusx.MustServeMetrics()
 	defer promSrv.Close()
 
-	receiver, err := alerts.NewReceiver(client, *githubRepo, *enableAutoClose, *labelOnResolved, extraLabels, string(titleTmplFile))
+	receiver, err := alerts.NewReceiver(client, *githubRepo, *enableAutoClose, *labelOnResolved, extraLabels, string(titleTmplFile), string(alertTmplFile))
 	if err != nil {
 		fmt.Print(err)
 		osExit(1)
