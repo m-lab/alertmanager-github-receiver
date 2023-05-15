@@ -293,11 +293,13 @@ func getOrgAndRepoFromIssue(issue *github.Issue) (string, string, error) {
 
 func updateRateMetrics(api string, resp *github.Response, err error) {
 	// Update rate limit metrics.
-	rateLimit.WithLabelValues(api).Set(float64(resp.Rate.Limit))
-	rateRemaining.WithLabelValues(api).Set(float64(resp.Rate.Remaining))
-	rateResetTime.WithLabelValues(api).Set(float64(resp.Rate.Reset.UTC().Unix()))
-	// Count the number of API operations per HTTP Status.
-	operationCount.WithLabelValues(resp.Status).Inc()
+	if resp != nil {
+		rateLimit.WithLabelValues(api).Set(float64(resp.Rate.Limit))
+		rateRemaining.WithLabelValues(api).Set(float64(resp.Rate.Remaining))
+		rateResetTime.WithLabelValues(api).Set(float64(resp.Rate.Reset.UTC().Unix()))
+		// Count the number of API operations per HTTP Status.
+		operationCount.WithLabelValues(resp.Status).Inc()
+	}
 	// If the err is a RateLimitError, then increment the rateError counter.
 	if _, ok := err.(*github.RateLimitError); ok {
 		log.Println("Hit rate limit!")
