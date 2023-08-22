@@ -1,7 +1,7 @@
 language: go
 
 go:
- - 1.18
+ - 1.21.0
 
 before_install:
   # Coverage tools
