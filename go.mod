@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/google/go-github v17.0.0+incompatible
-	github.com/m-lab/go v0.1.42
+	github.com/m-lab/go v0.1.66
 	github.com/prometheus/alertmanager v0.20.0
 	github.com/prometheus/client_golang v1.7.1
 	golang.org/x/net v0.0.0-20200421231249-e086a090c8fd
