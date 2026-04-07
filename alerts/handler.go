@@ -18,8 +18,8 @@ package alerts
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
+	"io"
+	"log/slog"
 	"net/http"
 	"text/template"
 
@@ -114,15 +114,15 @@ func NewReceiver(client ReceiverClient, githubRepo string, autoClose bool, resol
 func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// Verify that request is a POST.
 	if req.Method != http.MethodPost {
-		log.Printf("Client used unsupported method: %s: %s", req.Method, req.RemoteAddr)
+		slog.Warn("Client used unsupported method", "method", req.Method, "remote_addr", req.RemoteAddr)
 		rw.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
 	// Read request body.
-	alertBytes, err := ioutil.ReadAll(req.Body)
+	alertBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		log.Printf("Failed to read request body: %s", err)
+		slog.Error("Failed to read request body", "error", err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -130,21 +130,19 @@ func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 	// The WebhookMessage is dependent on alertmanager version. Parse it.
 	msg := &webhook.Message{}
 	if err := json.Unmarshal(alertBytes, msg); err != nil {
-		log.Printf("Failed to parse webhook message from %s: %s", req.RemoteAddr, err)
-		log.Printf("%s", string(alertBytes))
+		slog.Error("Failed to parse webhook message", "remote_addr", req.RemoteAddr, "error", err, "body", string(alertBytes))
 		rw.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	// log.Print(pretty.Sprint(msg))
 
 	// Handle the webhook message.
-	log.Printf("Handling alert: %s", id(msg))
+	slog.Info("Handling alert", "alert_id", id(msg))
 	if err := rh.processAlert(msg); err != nil {
-		log.Printf("Failed to handle alert: %s: %s", id(msg), err)
+		slog.Error("Failed to handle alert", "alert_id", id(msg), "error", err)
 		rw.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	log.Printf("Completed alert: %s", id(msg))
+	slog.Info("Completed alert", "alert_id", id(msg))
 	rw.WriteHeader(http.StatusOK)
 	// Empty response.
 }
@@ -166,7 +164,7 @@ func (rh *ReceiverHandler) processAlert(msg *webhook.Message) error {
 	var foundIssue *github.Issue
 	for _, issue := range issues {
 		if msgTitle == *issue.Title {
-			log.Printf("Found matching issue: %s\n", msgTitle)
+			slog.Info("Found matching issue", "title", msgTitle)
 			foundIssue = issue
 			break
 		}

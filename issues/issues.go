@@ -19,7 +19,7 @@ package issues
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -150,7 +150,7 @@ func (c *Client) CreateIssue(repo, title, body string, extra []string) (*github.
 		ctx, c.org, repo, &issueReq)
 	updateRateMetrics("issues", resp, err)
 	if err != nil {
-		log.Printf("Error in CreateIssue: response: %v", err)
+		slog.Error("Error in CreateIssue", "error", err)
 		return nil, err
 	}
 	return issue, nil
@@ -218,12 +218,12 @@ func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 			ctx, `is:issue in:title is:open org:`+c.org+` label:"`+c.alertLabel+`"`, sopts)
 		updateRateMetrics("search", resp, err)
 		if err != nil {
-			log.Printf("Failed to list open github issues: %v\n", err)
+			slog.Error("Failed to list open github issues", "error", err)
 			return nil, err
 		}
 		// Collect 'em all.
 		for i := range issues.Issues {
-			log.Println("ListOpenIssues:", issues.Issues[i].GetTitle())
+			slog.Info("ListOpenIssues", "title", issues.Issues[i].GetTitle())
 			allIssues = append(allIssues, &issues.Issues[i])
 		}
 
@@ -257,7 +257,7 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 		ctx, org, repo, *issue.Number, &issueReq)
 	updateRateMetrics("issues", resp, err)
 	if err != nil {
-		log.Printf("Failed to close issue: %v", err)
+		slog.Error("Failed to close issue", "error", err)
 		return nil, err
 	}
 	return closedIssue, nil
@@ -304,7 +304,7 @@ func updateRateMetrics(api string, resp *github.Response, err error) {
 
 	// If the err is a RateLimitError, then increment the rateError counter.
 	if _, ok := err.(*github.RateLimitError); ok {
-		log.Println("Hit rate limit!")
+		slog.Warn("Hit GitHub API rate limit")
 		rateErrorCount.Inc()
 	}
 }

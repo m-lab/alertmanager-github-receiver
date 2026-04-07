@@ -1,5 +1,7 @@
 # alertmanager-github-receiver
- [![Version](https://img.shields.io/github/tag/m-lab/alertmanager-github-receiver.svg)](https://github.com/m-lab/alertmanager-github-receiver/releases) [![Build Status](https://travis-ci.org/m-lab/alertmanager-github-receiver.svg?branch=master)](https://travis-ci.org/m-lab/alertmanager-github-receiver) [![Coverage Status](https://coveralls.io/repos/m-lab/alertmanager-github-receiver/badge.svg?branch=master)](https://coveralls.io/github/m-lab/alertmanager-github-receiver?branch=master) [![GoDoc](https://godoc.org/github.com/m-lab/alertmanager-github-receiver?status.svg)](https://godoc.org/github.com/m-lab/alertmanager-github-receiver) | [![Go Report Card](https://goreportcard.com/badge/github.com/m-lab/alertmanager-github-receiver)](https://goreportcard.com/report/github.com/m-lab/alertmanager-github-receiver)
+
+> **NOTE:** The [upstream repository](https://github.com/m-lab/alertmanager-github-receiver) does not appear to be actively maintained. This fork has been updated, and is provided with best-effort support.
+
 
 Not all alerts are an emergency. But, we want to track every one
 because alerts are always an actual problem. Either:

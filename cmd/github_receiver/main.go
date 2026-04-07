@@ -19,40 +19,22 @@ package main
 
 import (
 	"context"
-	"flag"
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/m-lab/go/httpx"
 	"github.com/m-lab/go/rtx"
+	"github.com/urfave/cli/v3"
 
 	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
 	"github.com/m-lab/alertmanager-github-receiver/issues/local"
-	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/prometheusx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-)
-
-var (
-	authtoken       = flag.String("authtoken", "", "Oauth2 token for access to github API.")
-	authtokenFile   = flagx.File{}
-	githubOrg       = flag.String("org", "", "The github user or organization name where all repos are found.")
-	githubRepo      = flag.String("repo", "", "The default repository for creating issues when alerts do not include a repo label.")
-	githubBaseURL   = flag.String("enterprise.base-url", "", "The URL of your GitHub Enterprise with API suffix (for example '/api/v3/').")
-	githubUploadURL = flag.String("enterprise.upload-url", "", "The upload URL needs to be set if it differs from the Github Enterprise base URL.")
-	enableAutoClose = flag.Bool("enable-auto-close", false, "Once an alert stops firing, automatically close open issues.")
-	labelOnResolved = flag.String("label-on-resolved", "", "Once an alert stops firing, apply this label.")
-	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
-	receiverAddr    = flag.String("webhook.listen-address", ":9393", "Listen on address for new Alertmanager webhook messages.")
-	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover existing alerts.")
-	extraLabels     = flagx.StringArray{}
-	titleTmplFile   = flagx.FileBytes(alerts.DefaultTitleTmpl)
-	alertTmplFile   = flagx.FileBytes(alerts.DefaultAlertTmpl)
 )
 
 // Metrics.
@@ -66,93 +48,186 @@ var (
 	)
 )
 
-var (
-	ctx, cancelCtx = context.WithCancel(context.Background())
-	osExit         = os.Exit
-)
-
-const (
-	usage = `
-NAME
-  github_receiver receives Alertmanager webhook notifications and creates
-  corresponding issues on Github.
-
-DESCRIPTION
-  The github_receiver authenticates all actions using the given -authtoken
-  or the value read from -authtokenFile. As well, the given -org and -repo
-  names are used as the default destination for new issues.
-
-EXAMPLE
-  github_receiver -org <name> -repo <repo> -authtoken <token>
-`
-)
-
-func init() {
-	flag.Var(&extraLabels, "label", "Extra labels to add to issues at creation time.")
-	flag.Var(&authtokenFile, "authtoken-file", "Oauth2 token file for access to github API. When provided it takes precedence over authtoken.")
-	flag.Var(&titleTmplFile, "title-template-file", "File containing a template to generate issue titles.")
-	flag.Var(&alertTmplFile, "alert-template-file", "File containing Markdown template to generate issue context.")
-	flag.Usage = func() {
-		fmt.Fprint(flag.CommandLine.Output(), usage)
-		flag.PrintDefaults()
-	}
-}
-
-func mustServeWebhookReceiver(receiver *alerts.ReceiverHandler) *http.Server {
+func mustServeWebhookReceiver(addr string, receiver *alerts.ReceiverHandler) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/", &issues.ListHandler{ListClient: receiver.Client})
 	mux.Handle("/v1/receiver", promhttp.InstrumentHandlerDuration(receiverDuration, receiver))
 	srv := &http.Server{
-		Addr:    *receiverAddr,
+		Addr:    addr,
 		Handler: mux,
 	}
 	rtx.Must(httpx.ListenAndServeAsync(srv), "Failed to start webhook receiver server")
-	log.Printf("HTTP receiver for Alertmanager started on '%s'", *receiverAddr)
-
+	slog.Info("HTTP receiver for Alertmanager started", "address", addr)
 	return srv
 }
 
-func main() {
-	flag.Parse()
-	rtx.Must(flagx.ArgsFromEnvWithLog(flag.CommandLine, false), "Failed to read ArgsFromEnv")
-	if (*authtoken == "" && len(authtokenFile.Bytes) == 0) || *githubOrg == "" || *githubRepo == "" {
-		flag.Usage()
-		osExit(1)
-		return
+func run(ctx context.Context, cmd *cli.Command) error {
+	// Configure structured JSON logging.
+	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+
+	authtoken := cmd.String("authtoken")
+	authtokenFile := cmd.String("authtoken-file")
+	org := cmd.String("org")
+	repo := cmd.String("repo")
+
+	if (authtoken == "" && authtokenFile == "") || org == "" || repo == "" {
+		_ = cli.ShowAppHelp(cmd)
+		return cli.Exit("required flags missing: --org, --repo, and one of --authtoken / --authtoken-file", 1)
 	}
 
 	var token string
-	if len(authtokenFile.Bytes) != 0 {
-		token = authtokenFile.Content()
+	if authtokenFile != "" {
+		b, err := os.ReadFile(authtokenFile)
+		if err != nil {
+			return err
+		}
+		token = strings.TrimSpace(string(b))
 	} else {
-		token = *authtoken
+		token = authtoken
 	}
 
+	alertLabel := cmd.String("alertlabel")
+	baseURL := cmd.String("enterprise.base-url")
+	uploadURL := cmd.String("enterprise.upload-url")
+
 	var client alerts.ReceiverClient
-	if *enableInMemory {
+	if cmd.Bool("enable-inmemory") {
 		client = local.NewClient()
-	} else if *githubBaseURL == "" {
-		client = issues.NewClient(*githubOrg, token, *alertLabel)
+	} else if baseURL == "" {
+		client = issues.NewClient(org, token, alertLabel)
 	} else {
 		var err error
-		client, err = issues.NewEnterpriseClient(*githubBaseURL, *githubUploadURL, *githubOrg, token, *alertLabel)
+		client, err = issues.NewEnterpriseClient(baseURL, uploadURL, org, token, alertLabel)
 		if err != nil {
-			fmt.Print(err)
-			osExit(1)
-			return
+			return err
 		}
 	}
 
+	// Set prometheus listen address before starting metrics server.
+	*prometheusx.ListenAddress = cmd.String("prometheus.listen-address")
 	promSrv := prometheusx.MustServeMetrics()
 	defer promSrv.Close()
 
-	receiver, err := alerts.NewReceiver(client, *githubRepo, *enableAutoClose, *labelOnResolved, extraLabels, string(titleTmplFile), string(alertTmplFile))
+	titleTmpl := cmd.String("title-template")
+	alertTmpl := cmd.String("alert-template")
+	receiver, err := alerts.NewReceiver(
+		client, repo,
+		cmd.Bool("enable-auto-close"),
+		cmd.String("label-on-resolved"),
+		cmd.StringSlice("label"),
+		titleTmpl, alertTmpl,
+	)
 	if err != nil {
-		fmt.Print(err)
-		osExit(1)
-		return
+		return err
 	}
-	srv := mustServeWebhookReceiver(receiver)
+
+	srv := mustServeWebhookReceiver(cmd.String("webhook.listen-address"), receiver)
 	defer srv.Close()
+
 	<-ctx.Done()
+	return nil
+}
+
+func newApp() *cli.Command {
+	return &cli.Command{
+		Name:  "github_receiver",
+		Usage: "Receive Alertmanager webhook notifications and create/close GitHub issues.",
+		Description: `github_receiver authenticates all actions using the given --authtoken
+or the file path in --authtoken-file. The --org and --repo flags set the
+default destination for new issues.
+
+Example:
+  github_receiver --org <name> --repo <repo> --authtoken <token>`,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "authtoken",
+				Usage:   "Oauth2 token for access to github API.",
+				Sources: cli.EnvVars("AUTHTOKEN"),
+			},
+			&cli.StringFlag{
+				Name:    "authtoken-file",
+				Usage:   "Path to file containing Oauth2 token. Takes precedence over --authtoken.",
+				Sources: cli.EnvVars("AUTHTOKEN_FILE"),
+			},
+			&cli.StringFlag{
+				Name:    "org",
+				Usage:   "The github user or organization name where all repos are found.",
+				Sources: cli.EnvVars("ORG"),
+			},
+			&cli.StringFlag{
+				Name:    "repo",
+				Usage:   "The default repository for creating issues when alerts do not include a repo label.",
+				Sources: cli.EnvVars("REPO"),
+			},
+			&cli.StringFlag{
+				Name:    "enterprise.base-url",
+				Usage:   "The URL of your GitHub Enterprise with API suffix (e.g. '/api/v3/').",
+				Sources: cli.EnvVars("ENTERPRISE_BASE_URL"),
+			},
+			&cli.StringFlag{
+				Name:    "enterprise.upload-url",
+				Usage:   "The upload URL if it differs from the GitHub Enterprise base URL.",
+				Sources: cli.EnvVars("ENTERPRISE_UPLOAD_URL"),
+			},
+			&cli.BoolFlag{
+				Name:    "enable-auto-close",
+				Usage:   "Once an alert stops firing, automatically close open issues.",
+				Sources: cli.EnvVars("ENABLE_AUTO_CLOSE"),
+			},
+			&cli.StringFlag{
+				Name:    "label-on-resolved",
+				Usage:   "Once an alert stops firing, apply this label.",
+				Sources: cli.EnvVars("LABEL_ON_RESOLVED"),
+			},
+			&cli.BoolFlag{
+				Name:    "enable-inmemory",
+				Usage:   "Perform all operations in memory, without using github API.",
+				Sources: cli.EnvVars("ENABLE_INMEMORY"),
+			},
+			&cli.StringFlag{
+				Name:    "webhook.listen-address",
+				Value:   ":9393",
+				Usage:   "Listen address for new Alertmanager webhook messages.",
+				Sources: cli.EnvVars("WEBHOOK_LISTEN_ADDRESS"),
+			},
+			&cli.StringFlag{
+				Name:    "prometheus.listen-address",
+				Value:   ":9090",
+				Usage:   "Listen address for the Prometheus metrics endpoint.",
+				Sources: cli.EnvVars("PROMETHEUS_LISTEN_ADDRESS"),
+			},
+			&cli.StringFlag{
+				Name:    "alertlabel",
+				Value:   "alert:boom:",
+				Usage:   "Default label applied to all alerts. Used to search the repo for existing alerts.",
+				Sources: cli.EnvVars("ALERTLABEL"),
+			},
+			&cli.StringSliceFlag{
+				Name:    "label",
+				Usage:   "Extra labels to add to issues at creation time (repeatable).",
+				Sources: cli.EnvVars("LABEL"),
+			},
+			&cli.StringFlag{
+				Name:    "title-template",
+				Value:   alerts.DefaultTitleTmpl,
+				Usage:   "Go template string for issue titles.",
+				Sources: cli.EnvVars("TITLE_TEMPLATE"),
+			},
+			&cli.StringFlag{
+				Name:    "alert-template",
+				Value:   alerts.DefaultAlertTmpl,
+				Usage:   "Go template string (Markdown) for issue bodies.",
+				Sources: cli.EnvVars("ALERT_TEMPLATE"),
+			},
+		},
+		Action: run,
+	}
+}
+
+func main() {
+	app := newApp()
+	if err := app.Run(context.Background(), os.Args); err != nil {
+		slog.Error("application error", "error", err)
+		os.Exit(1)
+	}
 }

@@ -18,7 +18,7 @@ package local
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/google/go-github/github"
 )
@@ -75,7 +75,7 @@ func (c *Client) LabelIssue(issue *github.Issue, label string, add bool) error {
 func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 	var allIssues []*github.Issue
 	for title := range c.issues {
-		log.Println("ListOpenIssues:", title)
+		slog.Info("ListOpenIssues", "title", title)
 		allIssues = append(allIssues, c.issues[title])
 	}
 	return allIssues, nil

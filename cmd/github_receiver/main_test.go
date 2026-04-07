@@ -1,13 +1,13 @@
 package main
 
 import (
-	"flag"
-	"io/ioutil"
+	"context"
+	"os"
 	"sync"
 	"testing"
 
-	"github.com/m-lab/go/prometheusx"
 	"github.com/m-lab/go/prometheusx/promtest"
+	"github.com/urfave/cli/v3"
 )
 
 func TestMetrics(t *testing.T) {
@@ -16,78 +16,132 @@ func TestMetrics(t *testing.T) {
 }
 
 func Test_main(t *testing.T) {
+	// Prevent cli.Exit from calling os.Exit during tests.
+	origOsExiter := cli.OsExiter
+	cli.OsExiter = func(int) {}
+	t.Cleanup(func() { cli.OsExiter = origOsExiter })
 	tests := []struct {
-		name         string
-		authfile     string
-		authtoken    string
-		repo         string
-		baseURL      string
-		titleTmpl    string
-		inmemory     bool
-		expectStatus int
+		name        string
+		args        []string
+		expectError bool
 	}{
 		{
-			name:      "okay-default",
-			repo:      "fake-repo",
-			authtoken: "token",
-			inmemory:  false,
+			name: "okay-default",
+			args: []string{
+				"github_receiver",
+				"--org", "fake-org",
+				"--repo", "fake-repo",
+				"--authtoken", "token",
+				"--webhook.listen-address", ":0",
+				"--prometheus.listen-address", ":0",
+			},
 		},
 		{
-			name:     "okay-inmemory",
-			authfile: "fake-token",
-			repo:     "fake-repo",
-			inmemory: true,
+			name: "okay-inmemory",
+			args: []string{
+				"github_receiver",
+				"--org", "fake-org",
+				"--repo", "fake-repo",
+				"--authtoken", "fake-token",
+				"--enable-inmemory",
+				"--webhook.listen-address", ":0",
+				"--prometheus.listen-address", ":0",
+			},
 		},
 		{
-			name:         "missing-flags-usage",
-			expectStatus: 1,
+			name:        "missing-flags-usage",
+			args:        []string{"github_receiver"},
+			expectError: true,
 		},
 		{
-			name:         "bad-title-tmpl",
-			repo:         "fake-repo",
-			authtoken:    "token",
-			titleTmpl:    "{{ x }}",
-			expectStatus: 1,
+			name: "bad-title-tmpl",
+			args: []string{
+				"github_receiver",
+				"--org", "fake-org",
+				"--repo", "fake-repo",
+				"--authtoken", "token",
+				"--title-template", "{{ x }}",
+				"--webhook.listen-address", ":0",
+				"--prometheus.listen-address", ":0",
+			},
+			expectError: true,
 		},
 		{
-			name:         "bad-baseURL",
-			repo:         "fake-repo",
-			authtoken:    "token",
-			baseURL:      "invalidURLEscape%zz",
-			expectStatus: 1,
+			name: "bad-baseURL",
+			args: []string{
+				"github_receiver",
+				"--org", "fake-org",
+				"--repo", "fake-repo",
+				"--authtoken", "token",
+				"--enterprise.base-url", "invalidURLEscape%zz",
+				"--webhook.listen-address", ":0",
+				"--prometheus.listen-address", ":0",
+			},
+			expectError: true,
 		},
 	}
-	flag.CommandLine.SetOutput(ioutil.Discard)
+
 	for _, tt := range tests {
-		osExit = func(status int) {
-			if status != tt.expectStatus {
-				t.Error(status)
-			}
-		}
-		*authtoken = tt.authtoken
-		authtokenFile.Bytes = []byte(tt.authfile)
-		*githubOrg = "fake-org"
-		*githubRepo = tt.repo
-		*githubBaseURL = tt.baseURL
-		*enableInMemory = tt.inmemory
-		// Guarantee no port conflicts between tests of main.
-		*prometheusx.ListenAddress = ":0"
-		*receiverAddr = ":0"
-
-		// Create template file.
-		if tt.titleTmpl != "" {
-			titleTmplFile = ([]byte)(tt.titleTmpl)
-		}
-
 		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+
+			var runErr error
 			wg := sync.WaitGroup{}
 			wg.Add(1)
 			go func() {
-				main()
-				wg.Done()
+				defer wg.Done()
+				runErr = newApp().Run(ctx, tt.args)
 			}()
-			cancelCtx()
+
+			// Cancel context to stop the server for the success cases.
+			// Error cases exit before reaching the blocking <-ctx.Done().
+			cancel()
 			wg.Wait()
+
+			if tt.expectError {
+				if runErr == nil {
+					t.Error("expected an error but got nil")
+				}
+			} else if runErr != nil && runErr != context.Canceled {
+				t.Errorf("unexpected error: %v", runErr)
+			}
 		})
+	}
+}
+
+func Test_authtokenFile(t *testing.T) {
+	// Write a temp file with a fake token.
+	f, err := os.CreateTemp(t.TempDir(), "authtoken")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString("fake-token"); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	args := []string{
+		"github_receiver",
+		"--org", "fake-org",
+		"--repo", "fake-repo",
+		"--authtoken-file", f.Name(),
+		"--enable-inmemory",
+		"--webhook.listen-address", ":0",
+		"--prometheus.listen-address", ":0",
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	var runErr error
+	go func() {
+		defer wg.Done()
+		runErr = newApp().Run(ctx, args)
+	}()
+	cancel()
+	wg.Wait()
+
+	if runErr != nil && runErr != context.Canceled {
+		t.Errorf("unexpected error: %v", runErr)
 	}
 }
